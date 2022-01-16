@@ -92,10 +92,10 @@ top = (cq.Workplane("XY")
 # Cherry MX reference model by https://github.com/ConstantinoSchillebeeckx/cherry-mx-switch
 cherry = cq.importers.importStep('cherry_mx.stp').rotate((0,0,0),(1,0,0),90)
 switches = (cq.Workplane()
-            .rect(width,depth)
+            .rect(width,depth, forConstruction=True)
             .rarray(space,space,cols,rows,True)
             .eachpoint(lambda loc: cherry.val().moved(loc))
-            .clean()
+            .combine(glue=True)
           )
 
 
@@ -108,12 +108,28 @@ keyboard = (cq.Assembly()
 #    .add(guide, color=cq.Color("red"))
     
 
+# keyboard\
+#     .constrain("bottom@faces@>Z", "plate@faces@<Z", "Plane")\
+#     .constrain("plate@faces@>Z", "top@faces@<Z", "Plane")\
+#     .constrain("plate@faces@>Z", "switches@faces@<Z", "Plane")\
+#     .constrain("plate@edges@>X", "switches@edges@>X", "Plane")
+
 keyboard\
-    .constrain("bottom@faces@>Z", "plate@faces@<Z", "Plane")\
-    .constrain("plate@faces@>Z", "top@faces@<Z", "Plane")\
-    .constrain("plate@faces@>Z", "switches@faces@<Z", "Plane")
-
-
+    .constrain("bottom@faces@>Z","plate@faces@<Z", "Plane")\
+    .constrain("bottom@faces@>X","plate@faces@>X", "Plane")\
+    .constrain("bottom@faces@>Y","plate@faces@>Y", "Plane")\
+    .constrain("bottom@faces@<X","plate@faces@<X", "Plane")\
+    .constrain("bottom@faces@<Y","plate@faces@<Y", "Plane")\
+    .constrain("top@faces@<Z", "plate@faces@>Z", "Plane")\
+    .constrain("top@faces@<X", "plate@faces@<X", "Plane")\
+    .constrain("top@faces@<Y", "plate@faces@<Y", "Plane")\
+    .constrain("top@faces@>X", "plate@faces@>X", "Plane")\
+    .constrain("top@faces@>Y", "plate@faces@>Y", "Plane")\
+    .constrain("bottom@faces@>Z", "switches@faces@<Z","Plane")\
+    .constrain("bottom@faces@<X", "switches@faces@<X","Plane")\
+    .constrain("bottom@faces@<Y", "switches@faces@<Y","Plane")\
+    .constrain("bottom@faces@>X", "switches@faces@>X","Plane")\
+    .constrain("bottom@faces@>Y", "switches@faces@>Y","Plane")
     
 
 keyboard.solve()

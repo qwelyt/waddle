@@ -3,7 +3,7 @@ import cadquery as cq
 space = 19.05
 cherryCutOutSize=14.05
 cherrySize=14.58
-cols = 12
+cols = 2
 rows = 4
 
 width = cols * space
@@ -98,12 +98,24 @@ switches = (cq.Workplane()
             .combine(glue=True)
           )
 
+# DSA keycap model by Kael Ruland https://www.reddit.com/r/MechanicalKeyboards/comments/5yzsaz/dsa_keycap_i_modeled_print_files_available_in/
+dsa1u = cq.importers.importStep('DSA_1u.step').rotate((0,0,0),(1,0,0),90)
+caps = (cq.Workplane()
+            .rect(width,depth, forConstruction=True)
+            .rarray(space,space,cols,rows,True)
+            .eachpoint(lambda loc: dsa1u.val().moved(loc))
+            .combine(glue=True)
+            # .translate((-4,1.6,0))
+          )
+
+
 
 keyboard = (cq.Assembly()
-    .add(bottom, name="bottom", color=cq.Color(0, 0, 1, 1))
-    .add(plate, name="plate", color=cq.Color(1,1,0,1))
+    # .add(bottom, name="bottom", color=cq.Color(0, 0, 1, 0.5))
+    # .add(plate, name="plate", color=cq.Color(1,1,0,1))
     .add(switches, name="switches", color=cq.Color(0,1,0,1))
-    .add(top, name="top", color=cq.Color(0,1,1,1))
+    .add(caps, name="caps", color=cq.Color(1,0,1,0.7))
+    # .add(top, name="top", color=cq.Color(0,1,1,0.5))
     )
 #    .add(guide, color=cq.Color("red"))
     
@@ -114,23 +126,59 @@ keyboard = (cq.Assembly()
 #     .constrain("plate@faces@>Z", "switches@faces@<Z", "Plane")\
 #     .constrain("plate@edges@>X", "switches@edges@>X", "Plane")
 
-keyboard\
-    .constrain("bottom@faces@>Z","plate@faces@<Z", "Plane")\
-    .constrain("bottom@faces@>X","plate@faces@>X", "Plane")\
-    .constrain("bottom@faces@>Y","plate@faces@>Y", "Plane")\
-    .constrain("bottom@faces@<X","plate@faces@<X", "Plane")\
-    .constrain("bottom@faces@<Y","plate@faces@<Y", "Plane")\
-    .constrain("top@faces@<Z", "plate@faces@>Z", "Plane")\
-    .constrain("top@faces@<X", "plate@faces@<X", "Plane")\
-    .constrain("top@faces@<Y", "plate@faces@<Y", "Plane")\
-    .constrain("top@faces@>X", "plate@faces@>X", "Plane")\
-    .constrain("top@faces@>Y", "plate@faces@>Y", "Plane")\
-    .constrain("bottom@faces@>Z", "switches@faces@<Z","Plane")\
-    .constrain("bottom@faces@<X", "switches@faces@<X","Plane")\
-    .constrain("bottom@faces@<Y", "switches@faces@<Y","Plane")\
-    .constrain("bottom@faces@>X", "switches@faces@>X","Plane")\
-    .constrain("bottom@faces@>Y", "switches@faces@>Y","Plane")
-    
+# keyboard\
+#     .constrain("bottom@faces@>Z","plate@faces@<Z", "Plane")\
+#     .constrain("bottom@faces@>X","plate@faces@>X", "Plane")\
+#     .constrain("bottom@faces@>Y","plate@faces@>Y", "Plane")\
+#     .constrain("bottom@faces@<X","plate@faces@<X", "Plane")\
+#     .constrain("bottom@faces@<Y","plate@faces@<Y", "Plane")\
+#     .constrain("top@faces@<Z", "plate@faces@>Z", "Plane")\
+#     .constrain("top@faces@<X", "plate@faces@<X", "Plane")\
+#     .constrain("top@faces@<Y", "plate@faces@<Y", "Plane")\
+#     .constrain("top@faces@>X", "plate@faces@>X", "Plane")\
+#     .constrain("top@faces@>Y", "plate@faces@>Y", "Plane")\
+#     .constrain("bottom@faces@>Z", "switches@faces@<Z","Plane")\
+#     .constrain("bottom@faces@<X", "switches@faces@<X","Plane")\
+#     .constrain("bottom@faces@<Y", "switches@faces@<Y","Plane")\
+#     .constrain("bottom@faces@>X", "switches@faces@>X","Plane")\
+#     .constrain("bottom@faces@>Y", "switches@faces@>Y","Plane")
+
+switches.faces("<X").edges(">Y").vertices(">Z").tag("refpoint")
+bottom.faces("<X[-4]").tag("xface")
+bottom.faces(">Y[-4]").tag("yface")
+# (keyboard
+#     .constrain("switches?refpoint", "top@faces@<X","PointInPlane", param=-5)
+#     .constrain("switches?refpoint", "top@faces@>Y","PointInPlane", param=-5)
+#     .constrain("switches?refpoint", "top@faces@<Z","PointInPlane", param=3)
+#     .constrain("top@faces@<X", "switches@faces@>X","Axis")
+#     .constrain("top@faces@<Y", "switches@faces@>Y","Axis")
+#     .constrain("bottom@faces@<X", "top@faces@>X","Axis")
+#     .constrain("bottom@faces@<X", "top@faces@>X","Axis")
+#     .constrain("bottom?xface", "plate@faces@<X", "Plane")
+#     .constrain("bottom?yface", "plate@faces@>Y", "Plane")
+#     .constrain("bottom@faces@>Z", "top@faces@<Z","Plane")
+#     .constrain("plate@faces@>Z", "top@faces@<Z","Plane")
+# )
+(keyboard
+ # .constrain("bottom@faces@>Z", "plate@faces@<Z", "PointInPlane", param=-1.5)
+ # .constrain("plate@faces@>Z", "switches@faces@<Z", "PointInPlane", param=-7.7)
+ .constrain("switches@faces@>Z", "caps@faces@<Z", "PointInPlane", param=0)
+ # .constrain("plate@faces@>Z", "top@faces@<Z", "PointInPlane", param=-1.5)
+ 
+  # .constrain("top@faces@<X", "plate@faces@<X", "Axis")
+ # .constrain("top@faces@<Y", "plate@faces@<Y", "Axis")
+ # .constrain("bottom@faces@<X", "plate@faces@<X", "Axis")
+ # .constrain("bottom@faces@<Y", "plate@faces@<Y", "Axis")
+ # .constrain("switches@faces@<X", "plate@faces@<X", "Axis")
+ # .constrain("switches@faces@<Y", "plate@faces@<Y", "Axis")
+ 
+  # .constrain("switches@faces@<X", "caps@faces@<X", "PointInPlane", param=0)
+  .constrain("switches@faces@<X", "caps@faces@<X", "Axis")
+  .constrain("switches@faces@<Y", "caps@faces@<Y", "Axis")
+  
+)
+
+
 
 keyboard.solve()
 #show_object(bottom)

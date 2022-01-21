@@ -90,7 +90,8 @@ top = (cq.Workplane("XY")
            .cutBlind(-plateThickness)
           )
 # Cherry MX reference model by https://github.com/ConstantinoSchillebeeckx/cherry-mx-switch
-cherry = cq.importers.importStep('cherry_mx.stp').rotate((0,0,0),(1,0,0),90)
+# cherry = cq.importers.importStep('cherry_mx.stp').rotate((0,0,0),(1,0,0),90)
+cherry = cq.Workplane("XY").box(15.6,15.6,3.6+11.6+3.3)
 switches = (cq.Workplane()
             .rect(width,depth, forConstruction=True)
             .rarray(space,space,cols,rows,True)
@@ -99,7 +100,8 @@ switches = (cq.Workplane()
           )
 
 # DSA keycap model by Kael Ruland https://www.reddit.com/r/MechanicalKeyboards/comments/5yzsaz/dsa_keycap_i_modeled_print_files_available_in/
-dsa1u = cq.importers.importStep('DSA_1u.step').rotate((0,0,0),(1,0,0),90)
+# dsa1u = cq.importers.importStep('DSA_1u.step').rotate((0,0,0),(1,0,0),90)
+dsa1u = cq.Workplane("XY").box(15.6,15.6,10)
 caps = (cq.Workplane()
             .rect(width,depth, forConstruction=True)
             .rarray(space,space,cols,rows,True)
@@ -200,13 +202,40 @@ keyboard.solve()
 # show_object(keyboard)
 
 # cutter = cq.Workplane("XY").box(rows*space+2,cols*space/2,50).translate((0,cols/2,0))))
-half = (cq.Workplane(keyboard.toCompound())
-        .faces(">Y")
+kwp = cq.Workplane(keyboard.toCompound())
+print(keyboard.toCompound().isValid())
+# print(kwp.findSolid().BoundingBox().DiagonalLength)
+half = (kwp
+        .faces("<Z")
         .workplane()
-        .split(keepTop=True)
-  )
+        .hole(20)
+)
+
+half2 = (kwp
+         .faces("<Z")
+         .workplane()
+         .rect(20,20)
+         .cutThruAll()
+         .translate((80,0,0))
+)
+
+cutBox = cq.Workplane("XY").box(20,200,50)
+half3 = (kwp
+         .faces("<Z")
+         .workplane()
+         .cut(cutBox)
+         .translate((-80,0,0))
+)
+
+half4 = (kwp
+         .faces("<Y")
+         .workplane(offset=-30)
+         .split(keepTop=True)
+         .translate((0,-100,0))
+         )
 show_object(half)
+show_object(half2)
+show_object(half3)
+show_object(half4)
+debug(cutBox.translate((-80,0,0)))
 # debug(cutter)
-
-
-

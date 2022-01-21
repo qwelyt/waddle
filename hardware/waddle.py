@@ -111,11 +111,11 @@ caps = (cq.Workplane()
 
 
 keyboard = (cq.Assembly()
-    # .add(bottom, name="bottom", color=cq.Color(0, 0, 1, 0.5))
-    # .add(plate, name="plate", color=cq.Color(1,1,0,1))
+    .add(bottom, name="bottom", color=cq.Color(0, 0, 1, 1))
+    .add(plate, name="plate", color=cq.Color(1,1,0,1))
     .add(switches, name="switches", color=cq.Color(0,1,0,1))
-    .add(caps, name="caps", color=cq.Color(1,0,1,0.7))
-    # .add(top, name="top", color=cq.Color(0,1,1,0.5))
+    .add(caps, name="caps", color=cq.Color(1,0,1,1))
+    .add(top, name="top", color=cq.Color(0,1,1,1))
     )
 #    .add(guide, color=cq.Color("red"))
     
@@ -160,22 +160,34 @@ bottom.faces(">Y[-4]").tag("yface")
 #     .constrain("plate@faces@>Z", "top@faces@<Z","Plane")
 # )
 (keyboard
- # .constrain("bottom@faces@>Z", "plate@faces@<Z", "PointInPlane", param=-1.5)
- # .constrain("plate@faces@>Z", "switches@faces@<Z", "PointInPlane", param=-7.7)
- .constrain("switches@faces@>Z", "caps@faces@<Z", "PointInPlane", param=0)
- # .constrain("plate@faces@>Z", "top@faces@<Z", "PointInPlane", param=-1.5)
+ .constrain("bottom@faces@>Z", "plate@faces@<Z", "PointInPlane", param=-1.5)
+ .constrain("plate@faces@>Z", "switches@faces@<Z", "PointInPlane", param=-7.7)
+  .constrain("switches@faces@>Z", "caps@faces@<Z", "PointInPlane", param=-3)
+ .constrain("plate@faces@>Z", "top@faces@<Z", "PointInPlane", param=-1.5)
  
-  # .constrain("top@faces@<X", "plate@faces@<X", "Axis")
- # .constrain("top@faces@<Y", "plate@faces@<Y", "Axis")
- # .constrain("bottom@faces@<X", "plate@faces@<X", "Axis")
- # .constrain("bottom@faces@<Y", "plate@faces@<Y", "Axis")
- # .constrain("switches@faces@<X", "plate@faces@<X", "Axis")
- # .constrain("switches@faces@<Y", "plate@faces@<Y", "Axis")
+.constrain("plate@faces@<X", "bottom@faces@<X", "Axis")
+.constrain("plate@faces@<Y", "bottom@faces@<Y", "Axis")
+.constrain("plate@faces@<X", "switches@faces@<X", "Axis")
+.constrain("plate@faces@<Y", "switches@faces@<Y", "Axis")
+.constrain("plate@faces@<X", "top@faces@<X", "Axis")
+.constrain("plate@faces@<Y", "top@faces@<Y", "Axis")
+.constrain("plate@faces@<X", "caps@faces@<X", "Axis")
+.constrain("plate@faces@<Y", "caps@faces@<Y", "Axis")
  
-  # .constrain("switches@faces@<X", "caps@faces@<X", "PointInPlane", param=0)
-  .constrain("switches@faces@<X", "caps@faces@<X", "Axis")
-  .constrain("switches@faces@<Y", "caps@faces@<Y", "Axis")
-  
+# .constrain("switches?refpoint", "caps@faces@>X", "PointInPlane", param=-1.1)
+# .constrain("switches?refpoint", "caps@faces@<Y", "PointInPlane", param=-1.15)
+# .constrain("switches@faces@<X", "caps@faces@<X", "Axis")
+# .constrain("switches@faces@<Y", "caps@faces@<Y", "Axis")
+
+# .constrain("switches@faces@<X", "top@faces@<X", "Axis")
+# .constrain("switches@faces@<Y", "top@faces@<Y", "Axis")
+# .constrain("switches@faces@<X", "bottom@faces@<X", "Axis")
+# .constrain("switches@faces@<Y", "bottom@faces@<Y", "Axis")
+
+# .constrain("caps@faces@<X", "top@faces@<X", "Axis")
+# .constrain("caps@faces@<Y", "top@faces@<Y", "Axis")
+# .constrain("caps@faces@<X", "bottom@faces@<X", "Axis")
+# .constrain("caps@faces@<Y", "bottom@faces@<Y", "Axis")
 )
 
 
@@ -184,7 +196,17 @@ keyboard.solve()
 #show_object(bottom)
 # show_object(plate)
 # show_object(top)
-show_object(keyboard)
+
+# show_object(keyboard)
+
+# cutter = cq.Workplane("XY").box(rows*space+2,cols*space/2,50).translate((0,cols/2,0))))
+half = (cq.Workplane(keyboard.toCompound())
+        .faces(">Y")
+        .workplane()
+        .split(keepTop=True)
+  )
+show_object(half)
+# debug(cutter)
 
 
 

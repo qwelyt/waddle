@@ -135,7 +135,11 @@ def proMicro(version="micro"):
     pcb = board(version)
     d = pcb.findSolid().BoundingBox().ymax
     print(d)
-    return (cq.Assembly(name="Arduino_Pro_Micro-USB-" + str(version))
+    return (cq.Assembly(name="Arduino_Pro_Micro-USB-" + str(version) + " by qwelyt"
+            , metadata = {
+                "Author": "https://www.github.com/qwelyt"
+                }
+        )
             .add(pcb
                  , name  = "board"
                  , color = cq.Color(0.1,0.6,0.2,1)
@@ -152,8 +156,8 @@ def proMicro(version="micro"):
                  , loc   = cq.Location(cq.Vector(0, 0, 1.5))
                  )
             )
-v = "c"
+v = "micro"
 pm = proMicro(v)
 show_object(pm)
 #show_object(proMicro("c"))
-pm.save("proMicro_"+v+".step")
+pm.save("proMicro_"+v+".step", "STEP")

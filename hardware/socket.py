@@ -10,6 +10,8 @@ def legs(num):
             .rarray(14, 2.54, 2, num)
             .circle(1.35/2)
             .extrude(1.3)
+            .faces("<Z[1]")
+            .chamfer(0.2124)
             )
 
 def body(num):
@@ -63,12 +65,12 @@ def body(num):
             .rect(11,2.8)
             .extrude(-1.8)
             )
-    return body
+    return body#.edges(">Y or <Y or >X or <X").fillet(0.2)
 
 def socket(nPins):
     _legs = legs(nPins)
     h = _legs.findSolid().BoundingBox().zmax
-    return (cq.Assembly(name = "Lathed DIL socket by qwelyt")
+    return (cq.Assembly(name = "Lathed DIL socket "+str(nPins*2)+"pins by qwelyt")
             .add(_legs
                 , name = "pins"
                 , color = cq.Color(1,0.9,0.7,1)
@@ -80,7 +82,8 @@ def socket(nPins):
                 )
             )
 
-s = socket(12)
+numLegs = 12
+s = socket(numLegs)
 show_object(s)
 #show_object(body(12))
-s.save("DIL_socket_24pins.step", "STEP")
+s.save("DIL_socket_"+str(numLegs*2)+"pins.step", "STEP")

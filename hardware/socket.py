@@ -13,7 +13,7 @@ def legs(num):
             )
 
 def body(num):
-    return (cq.Workplane("XY")
+    body = (cq.Workplane("XY")
             .rarray(12.5, 2.54, 2, num)
             .rect(3.48, 2.54)
             .extrude(2.8)
@@ -32,10 +32,6 @@ def body(num):
             .tag("base")
 
 
-            # middle bar
-            .rect(11,2.8)
-            .extrude(-1.8)
-
             # end
             .workplaneFromTagged("base")
             .rarray(1, 2.54*num-2.8, 1, 2)
@@ -48,7 +44,7 @@ def body(num):
             .rarray(1, 2.54*num-2.8, 1, 2, (False,True))
             .circle(1.48/2)
             .extrude(-1.8-0.8)
-            
+
             .edges(">Y and <X")
             .workplane(centerOption="CenterOfMass")
             .center(6.5,0)
@@ -56,14 +52,18 @@ def body(num):
             .cutThruAll()
 
             .workplaneFromTagged("top")
-            #.rect(2,2).extrude(2)
-            #.center(6.5, 2)
-            .rect(10,30, forConstruction=True)
-            .edges("<XY and >Z")
+            .rect(18, 2.54*num, forConstruction=True)
+            .edges("<Y")
             .workplane(centerOption="CenterOfMass")
-            .center(0,1.25)
+            .center(0,2.8/2)
             .text(str(num*2), 2,-1.1)
             )
+    if num > 6:  # middle bar
+            body = (body.workplaneFromTagged("base")
+            .rect(11,2.8)
+            .extrude(-1.8)
+            )
+    return body
 
 def socket(nPins):
     _legs = legs(nPins)
@@ -71,7 +71,7 @@ def socket(nPins):
     return (cq.Assembly(name = "Lathed DIL socket by qwelyt")
             .add(_legs
                 , name = "pins"
-                , color = cq.Color(1,0,0.4,1)
+                , color = cq.Color(1,0.9,0.7,1)
                 )
             .add(body(nPins)
                 , name = "body"
@@ -83,3 +83,4 @@ def socket(nPins):
 s = socket(12)
 show_object(s)
 #show_object(body(12))
+s.save("DIL_socket_24pins.step", "STEP")

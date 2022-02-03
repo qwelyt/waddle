@@ -2,26 +2,34 @@ import cadquery as cq
 
 def legs(num):
     return (cq.Workplane("XY")
+            # Small section
             .rarray(14, 2.54, 2, num)
             .circle(0.5/2)
             .extrude(3.2)
+
+            # Thicker section
             .faces(">Z")
             .workplane()
             .rarray(14, 2.54, 2, num)
             .circle(1.35/2)
             .extrude(1.3)
+            
             .faces("<Z[1]")
             .chamfer(0.2124)
             )
 
 def body(num):
     body = (cq.Workplane("XY")
+            # Sides
             .rarray(12.5, 2.54, 2, num)
             .rect(3.48, 2.54)
             .extrude(2.8)
 
             .faces(">Z")
-            .workplane().tag("top")
+            .workplane()
+            .tag("top")
+
+            # Holes
             .rarray(13.6, 2.54, 2, num)
             .circle(0.5)
             .cutThruAll(True)
@@ -33,13 +41,13 @@ def body(num):
             .workplane()
             .tag("base")
 
-
-            # end
+            # Bars on each end
             .workplaneFromTagged("base")
             .rarray(1, 2.54*num-2.8, 1, 2)
             .rect(11,2.8)
             .extrude(-1.8)
 
+            # Circular things on the bars
             .faces("<Z")
             .workplane()
             .center(-3.3,0)
@@ -47,12 +55,14 @@ def body(num):
             .circle(1.48/2)
             .extrude(-1.8-0.8)
 
-            .edges(">Y and <X")
+            # Notch
+            .edges(">Y and <Z")
             .workplane(centerOption="CenterOfMass")
-            .center(6.5,0)
+            .center(-2.3/2,0)
             .circle(2.3/2)
             .cutThruAll()
 
+            # Text
             .workplaneFromTagged("top")
             .rect(18, 2.54*num, forConstruction=True)
             .edges("<Y")

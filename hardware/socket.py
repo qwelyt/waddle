@@ -1,16 +1,21 @@
 import cadquery as cq
 
+sideSize=3.5
+barWidth = 12.5
+bodyWidth = barWidth+(sideSize/2)
+legWidth = bodyWidth+1.3
+spacing = 2.54
 def legs(num):
     return (cq.Workplane("XY")
             # Small section
-            .rarray(14, 2.54, 2, num)
+            .rarray(legWidth, spacing, 2, num)
             .circle(0.5/2)
             .extrude(3.2)
 
             # Thicker section
             .faces(">Z")
             .workplane()
-            .rarray(14, 2.54, 2, num)
+            .rarray(legWidth, spacing, 2, num)
             .circle(1.35/2)
             .extrude(1.3)
             
@@ -21,8 +26,8 @@ def legs(num):
 def body(num):
     body = (cq.Workplane("XY")
             # Sides
-            .rarray(12.5, 2.54, 2, num)
-            .rect(3.48, 2.54)
+            .rarray(bodyWidth, spacing, 2, num)
+            .rect(sideSize, spacing)
             .extrude(2.8)
 
             .faces(">Z")
@@ -30,12 +35,12 @@ def body(num):
             .tag("top")
 
             # Holes
-            .rarray(13.6, 2.54, 2, num)
-            .circle(0.5)
+            .rarray(legWidth, spacing, 2, num)
+            .circle(1/2)
             .cutThruAll(True)
             .faces(">Z")
             .edges("not(<X or >X or <Y or >Y or >Y[0])")
-            .chamfer(0.45)
+            .chamfer((1.8-1)/2)
 
             .faces("<Z")
             .workplane()
@@ -43,15 +48,15 @@ def body(num):
 
             # Bars on each end
             .workplaneFromTagged("base")
-            .rarray(1, 2.54*num-2.8, 1, 2)
-            .rect(11,2.8)
+            .rarray(1, spacing*num-2.8, 1, 2)
+            .rect(barWidth,2.8)
             .extrude(-1.8)
 
             # Circular things on the bars
             .faces("<Z")
             .workplane()
-            .center(-3.3,0)
-            .rarray(1, 2.54*num-2.8, 1, 2, (False,True))
+            .center(-barWidth/2+1.48+0.5,0)
+            .rarray(1, spacing*num-2.8, 1, 2, (False,True))
             .circle(1.48/2)
             .extrude(-1.8-0.8)
 
@@ -72,7 +77,7 @@ def body(num):
             )
     if num > 6:  # middle bar
             body = (body.workplaneFromTagged("base")
-            .rect(11,2.8)
+            .rect(barWidth,2.8)
             .extrude(-1.8)
             )
     return body#.edges(">Y or <Y or >X or <X").fillet(0.2)
@@ -94,6 +99,9 @@ def socket(nPins):
 
 numLegs = 12
 s = socket(numLegs)
+#s = legs(numLegs)
+#s = body(numLegs)
 show_object(s)
+#show_object(proMicro())
 #show_object(body(12))
 s.save("DIL_socket_"+str(numLegs*2)+"pins.step", "STEP")

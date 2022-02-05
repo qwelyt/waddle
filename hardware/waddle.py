@@ -15,8 +15,8 @@ class waddle:
     bottomHeight = 13
     topHeight =9
     
-    plateW = width - lip/2;
-    plateD = depth - lip/2;
+    plateW = width - lip/1.5;
+    plateD = depth - lip/1.2;
     plateThickness = 3
 
     def __init__(self):
@@ -64,7 +64,7 @@ class waddle:
 
                 # Make room so the socket can reach the pads
                 .workplaneFromTagged("pmcut")
-                .center(35/2-3,9.5)
+                .center(35/2-4,9.5)
                 .rect(35,19)
                 .extrude(12, "cut")
 
@@ -76,14 +76,14 @@ class waddle:
 
                 # Punch a hole in the outer wall
                 .faces("<X")
-                .workplane()
+                .workplane(offset=-1)
                 .center(0,2.6)
                 .sketch()
                 .rect(9.8,4.1)
-                .edges("|Z")
-                .fillet(100)
+                .vertices()
+                .fillet(1)
                 .finalize()
-                .extrude(-10, "cut", taper=15)
+                .extrude(-5, "cut", taper=11)
                 #.edges("|X")
                 #.fillet(0.49)
                 #.edges()
@@ -212,7 +212,7 @@ def keyboard(bottom=False
     if bottom:
         kb.add(_bottom
                 , name  = "bottom"
-                , color = cq.Color(0,0,1,1)
+                , color = cq.Color(0,0,1,0.5)
                 , loc   = cq.Location(cq.Vector(0,0,0))
                 )
     if plate:
@@ -254,14 +254,15 @@ def keyboard(bottom=False
     return kb
 
 k = keyboard(bottom=True
-        , plate=False
-        , switches=False
-        , caps=False
+#        , plate=True
+#        , switches=True
+#        , caps=True
         , proMicro=True
-        , socket=False
-        , top=False
+        , socket=True
+#        , top=True
         )
 show_object(k)
+#show_object(cq.Workplane("XY").sketch().rect(10,3).vertices().fillet(1).finalize().extrude(10, taper=-10))
 # show_object(cq.Workplane(k.toCompound()).rotate((0,0,0),(1,0,0),90).split(keepTop=True))
 # show_object(cq.Workplane(k.toCompound()).faces(">X").workplane(-width/2).split(keepTop=True))
 #k.save("waddle.step")

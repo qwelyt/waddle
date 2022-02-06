@@ -113,14 +113,8 @@ class waddle_alt:
                 .edges("<Z")
                 .fillet(1)
 
-#                .faces(">Z")
-#                .sketch()
-#                .rect(self.width-6,self.depth-6)
-#                .vertices()
-#                .chamfer(9)
-#                .finalize()
-#                .extrude(-(self.bottomHeight-3), "cut", taper=40)
 
+                # Inner raised edge to rest the plate on
                 .faces(">Z")
                 .workplane()
                 .tag("top")
@@ -132,16 +126,38 @@ class waddle_alt:
                 .finalize()
                 .extrude(3)
 
+                # Gut the bottom
                 .workplaneFromTagged("top")
                 .sketch()
                 .rect(self.plateW-5, self.plateD-5)
                 .vertices()
                 .fillet(self.fillet)
                 .finalize()
-                .extrude(-(self.bottomHeight-6), "cut")
+                .extrude(-(self.bottomHeight-5), "cut")
+
+                # Place for proMicro + socket
+                .faces("<Z")
+                .edges("<X")
+                .workplane(centerOption="CenterOfMass", offset=-1)
+                .tag("pmcut")
+                .center(35/2,self.space/2)
+                .rect(36,19)
+                .extrude(-10, "cut")
+                
+                # Punch a hole in the wall
+                .first()
+                .faces("<X")
+                .workplane(offset=0)
+                #.center(0,26)
+                .sketch()
+                .rect(9.8,4.1)
+                .vertices()
+                .fillet(1)
+                .finalize()
+                .extrude(5)#, "cut", taper=11)
                 )
 
-    def top(self):
+    def top(self):# {{{
         return (cq.Workplane("XY")
                 .sketch()
                 .rect(self.width,self.depth)
@@ -161,14 +177,24 @@ class waddle_alt:
                 # Shelf for plate
                 .faces("<Z")
                 .workplane()
-                .tag("top")
+                .tag("bottom")
                 .sketch()
                 .rect(self.plateW+2, self.plateD+2)
                 .vertices()
                 .fillet(self.fillet)
                 .finalize()
                 .extrude(-8, "cut")
-                )
+
+
+                # Extra spacing so the bottom fits
+                .workplaneFromTagged("bottom")
+                .sketch()
+                .rect(self.plateW+4, self.plateD+4)
+                .vertices()
+                .fillet(self.fillet)
+                .finalize()
+                .extrude(-3.4, "cut")
+                )# }}}
 
 
 def keyboard(bottom=False
@@ -185,8 +211,10 @@ def keyboard(bottom=False
     bbb = _bottom.findSolid().BoundingBox()
     sock = _waddle.socket()
     sockBox = sock.findSolid().BoundingBox()
-    pm = bbb.xmin+sockBox.xmax*1.4
-    pmz = _waddle.bottomHeight-1.5
+
+    pmx = bbb.xmin+sockBox.xmax+9.5
+    pmy = -_waddle.space/2
+    pmz = -4
 
     topZ = 0#_waddle.bottomHeight
     plateZ = topZ + 4.0
@@ -199,7 +227,7 @@ def keyboard(bottom=False
     if bottom:
         kb.add(_bottom
                 , name  = "bottom"
-                , color = cq.Color(0,0,1,1)
+                , color = cq.Color(0,0,1,0.5)
                 , loc   = cq.Location(cq.Vector(0,0,0))
                 )
     if plate:
@@ -224,13 +252,13 @@ def keyboard(bottom=False
         kb.add(_waddle.proMicro("c")
                 , name  = "proMicro"
                 , color = cq.Color(1,1,0.3,1)
-                , loc   = cq.Location(cq.Vector(pm-1.2,_waddle.space/2,pmz-7.5))
+                , loc   = cq.Location(cq.Vector(pmx,pmy,pmz))
                 )
     if socket:
         kb.add(sock
                 , name  = "socket"
                 , color = cq.Color(0.3,0.5,0.3,1)
-                , loc   = cq.Location(cq.Vector(pm,_waddle.space/2,pmz))
+                , loc   = cq.Location(cq.Vector(pmx,pmy,pmz))
                 )
     if top:
         kb.add(_waddle.top()
@@ -241,12 +269,12 @@ def keyboard(bottom=False
     return kb
 
 k = keyboard(bottom=True
-        , plate=True
+        , plate=False
 #        , switches=True
 #        , caps=True
-#        , proMicro=True
+        , proMicro=True
 #        , socket=True
-        , top=True
+#        , top=True
         )
 show_object(k)
 k.save("waddle_alt.step")

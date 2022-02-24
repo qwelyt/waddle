@@ -11,14 +11,19 @@ class waddle_alt:
     fillet = 3
     width = cols * space + lip
     depth = rows * space + lip
-    
-    bottomHeight = 6
-    topHeight = 15
-    
+
     plateW = width - lip/1.5;
     plateD = depth - lip/1.2;
     plateThickness = 3
 
+    
+    bottomHeight = 6
+    bottomThickness = 3
+    bottomInnerW = plateW-10
+    bottomInnerD = plateD-8
+
+    topHeight = 15
+    
     def __init__(self):
         pass
 
@@ -48,29 +53,41 @@ class waddle_alt:
                  .box(self.cherryCutOutSize, self.cherryCutOutSize, self.plateThickness+2)
                  )
     
-    def plate(self, cut=cherryCut, socketX=0, socketY=0):
+    def plateNoCuts(self):
         plate = (cq.Workplane("XY")
                 .rect(self.plateW, self.plateD)
                 .extrude(self.plateThickness)
                 .edges("|Z")
                 .fillet(self.fillet)
                 )
-        # Cut holes for switches
-        plate = (plate.workplane()
+        return plate
+
+    def applyPlateSwitchCuts(self, plate, cut=cherryCut):
+        return (plate.workplane()
+                .rect(self.plateW, self.plateD, forConstruction=True)
                 .rarray(self.space, self.space, self.cols, self.rows, True)
                 .cutEach(lambda loc: cut().val().moved(loc).translate((0,0,-0.25)))
                 )
 
-        # Place for socket to rest
-        plate = (plate.faces("<Z")
+    def applyPlateSocketCuts(self, plate, socketX=0, socketY=0):
+        return (plate.faces("<Z")
                 .edges("<X")
-                .translate((6*2.54-0.7, socketY,0))
+                .translate(((2.54*6)-0.65, socketY, 0))
                 .sketch()
-                .rarray(2.54,15.5, 12, 2)
-                .circle(0.5)
+                .rarray(2.54, 15.5, 12, 2)
+                .circle(1/2)
                 .finalize()
                 .extrude(self.plateThickness/2, "cut")
                 )
+
+    def plate(self, cut=cherryCut, socketX=0, socketY=0):
+        plate = self.plateNoCuts()
+
+        # Cut holes for switches
+        plate = self.applyPlateSwitchCuts(plate, cut)
+
+        # Place for socket to rest
+        plate = self.applyPlateSocketCuts(plate, socketX, socketY)
 
         return plate
     
@@ -154,9 +171,9 @@ class waddle_alt:
         
         # Gut the bottom
         bottom = (bottom.faces("<Z")
-                .workplane(offset=-2)
+                .workplane(offset=-self.bottomThickness)
                 .sketch()
-                .rect(self.plateW-10, self.plateD-8)
+                .rect(self.bottomInnerW, self.bottomInnerD)
                 .vertices()
                 .fillet(self.fillet)
                 .finalize()
@@ -283,19 +300,85 @@ class waddle_alt:
 class waddle_alt_split(waddle_alt):
 
     def bottom(self):
-        b = super().bottom()
-        return (b.rotate((0,0,0),(0,1,0),90)
-                .workplane(centerOption="CenterOfMass", offset=-2)
-                .split(keepBottom=True)
-                .rotate((0,0,0),(0,1,0),-90)
+        bottom = super().bottom()
+        botBB = bottom.findSolid().BoundingBox()
+        botW2 = botBB.xlen/2
+
+        s1 = cq.Sketch().rect(botW2-super().space, botBB.ymax+0.2)
+        s2 = cq.Sketch().rect(botW2+super().space, -botBB.ymin+0.2)
+
+        s1y = s1._faces.BoundingBox().ylen/2
+        s2y = s2._faces.BoundingBox().ylen/2
+
+        s1x = s2._faces.BoundingBox().xlen/2
+        s2x = s1._faces.BoundingBox().xlen/2
+
+        # Split bottom
+        bottom = (bottom
+                .faces("<Z")
+                .tag("bottom")
+                .placeSketch(
+                    s1.moved(cq.Location(cq.Vector(s1x,s1y,0)))
+                    , s2.moved(cq.Location(cq.Vector(s2x,-s2y,0)))
+                    )
+                .cutThruAll()
                 )
+
+
+        # Extruded lip
+        bottom = (bottom.faces("<Z")
+                .vertices(">XY")
+                .sketch()
+                .push([(0, super().bottomInnerD/2.5)])
+                .rect(20,super().bottomInnerD/2)
+                .finalize()
+                .extrude(-super().bottomThickness/2)
+                )
+        # Cut to hold extrusion
+        bottom = (bottom.faces("<Z")
+                .vertices("<Y")
+                .vertices(">X")
+                .sketch()
+                .push([(0, -super().bottomInnerD/2.5)])
+                .rect(20,super().bottomInnerD/2)
+                .finalize()
+                .extrude(-super().bottomThickness/2, "cut")
+                )
+
+        # Hole for edge socket
+        bottom = (bottom.faces("<Z")
+                .vertices("<Y")
+                .vertices(">X")
+                .translate((0,0,1.5))
+                .sketch()
+                .push([(-2,-4)])
+                .rect(4, 3.5)
+                .finalize()
+                .extrude(-3.5, "cut")
+                )
+
+        # Extrusion for edge socket
+        bottom = (bottom.faces("<Z")
+                .vertices(">Y")
+                .vertices(">X")
+                .translate((0,0,1.5))
+                .sketch()
+                .push([(3/2,4)])
+                .rect(3.5,3)
+                .finalize()
+                .extrude(-3)
+                )
+
+        return bottom
+      
+
     def cherryCut(self):
         return super().cherryCut()
     def simpleCut(self):
         return super().simpleCut()
     
     def plate(self, cut=cherryCut, socketX=0, socketY=0):
-        plate = super().plate(cut, socketX, socketY)
+        plate = super().plateNoCuts()
         plateBB = plate.findSolid().BoundingBox()
 
         plateW2 = plateBB.xlen/2
@@ -314,7 +397,7 @@ class waddle_alt_split(waddle_alt):
 
 
         # Extend top part
-        plate = (plate.faces(">Z").tag("top")
+        plate = (plate.faces(">Z")
                 .vertices(">XY")
                 .sketch()
                 .push([(0,-plateBB.ymax/2+0.05)])
@@ -324,7 +407,7 @@ class waddle_alt_split(waddle_alt):
                 )
         
         # Cut on top part
-        plate = (plate.faces(">Z") # .workplaneFromTagged("top") # does not work
+        plate = (plate.faces("<Z") # .workplaneFromTagged("top") # does not work
                 .vertices(">XY")
                 .sketch()
                 .push([(0,-plateBB.ymax/2+0.05)])
@@ -333,20 +416,86 @@ class waddle_alt_split(waddle_alt):
                 .extrude(super().plateThickness/2, "cut")
                 )
 
-        plate = (plate.faces(">Z")
-                .vertices(">>X[-7] and <Y")
+        # Extend bottom part
+        plate = (plate.faces("<Z")
+                .vertices("<Y")
+                .vertices(">X")
                 .sketch()
-                .rect(10,20)
+                .push([(0,plateBB.ymax/2+0.05)])
+                .rect(2,plateBB.ymax+0.1)
                 .finalize()
-                .extrude(30)
+                .extrude(super().plateThickness/2)
                 )
+
+        # Cut on bottom part
+        plate = (plate.faces(">Z")
+                .vertices("<Y")
+                .vertices(">X")
+                .sketch()
+                .push([(0,plateBB.ymax/2+0.05)])
+                .rect(2,plateBB.ymax+0.1)
+                .finalize()
+                .extrude(-super().plateThickness/2, "cut")
+                )
+
+        plate = super().applyPlateSwitchCuts(plate, cut)
+        plate = super().applyPlateSocketCuts(plate, socketX, socketY)
 
 
         return plate
 
+    def top(self):
+        top = super().top()
+        topBB = top.findSolid().BoundingBox()
+        topW2 = topBB.xlen/2
+
+        s1 = cq.Sketch().rect(topW2+super().space/2, topBB.ymax+0.2)
+        s2 = cq.Sketch().rect(topW2-super().space/2, -topBB.ymin+0.2)
+
+        s1y = s1._faces.BoundingBox().ylen/2
+        s2y = s2._faces.BoundingBox().ylen/2
+
+        s1x = s2._faces.BoundingBox().xlen/2
+        s2x = s1._faces.BoundingBox().xlen/2
+
+        # Split top
+        top = (top
+                .faces("<Z")
+                .placeSketch(
+                    s1.moved(cq.Location(cq.Vector(s1x,s1y,0)))
+                    , s2.moved(cq.Location(cq.Vector(s2x,-s2y,0)))
+                    )
+                .cutThruAll()
+                )
+        top = (top
+                .faces("<Z")
+                .vertices("<Y")
+                .vertices(">X")
+                .translate((5.5/2,6,3))
+                .sketch()
+                .rect(5.5,3.5)
+                .finalize()
+                .extrude(-3.5)
+                )
+
+        top = (top
+                .faces("<Z")
+                .vertices(">Y")
+                .vertices(">X")
+                .translate((-6/2,-6,3))
+                .sketch()
+                .rect(6,4)
+                .finalize()
+                .extrude(-4, "cut")
+                )
+
+        return top
 
 
-def keyboard(bottom=False
+class Keyboard:
+
+    def __init__(self
+        , bottom=False
         , plate=False
         , switches=False
         , caps=False
@@ -355,93 +504,153 @@ def keyboard(bottom=False
         , top=False
         , magnetsTop=False
         , magnetsBottom=False
-        ):
-    
-    _waddle = waddle_alt_split()
-    _bottom = _waddle.bottom()
-    bbb = _bottom.findSolid().BoundingBox()
-    sock = _waddle.socket()
-    sockBox = sock.findSolid().BoundingBox()
+        , split = False
+        , bothSides = True
+            ):
+        
+        self.bottom = bottom
+        self.plate = plate
+        self.switches = switches
+        self.caps = caps
+        self.proMicro = proMicro
+        self.socket = socket
+        self.top = top
+        self.magnetsTop = magnetsTop
+        self.magnetsBottom = magnetsBottom
+        self.split = split
+        self.bothSides = bothSides
 
-    pmx = bbb.xmin+sockBox.xmax+6.5
-    pmy = -_waddle.space/2
-    pmz = -3.5
-    _plate = _waddle.plate(_waddle.simpleCut, pmx+2, pmy)
+    def render(self):
+        self._waddle = waddle_alt_split() if self.split else waddle_alt()
+        self._bottom = self._waddle.bottom()
+        self.bbb = self._bottom.findSolid().BoundingBox()
+        self.sock = self._waddle.socket()
+        self.sockBox = self.sock.findSolid().BoundingBox()
+        self.pmx = self.bbb.xmin+self.sockBox.xmax+6.5
+        self.pmy = -self._waddle.space/2
+        self.pmz = -3.5
+        self.topZ = 0
+        self.plateZ = self.topZ + 4.0
+        self.switchZ = self.plateZ + self._waddle.plateThickness + 1.4
+        self.capsZ = self.switchZ + 9.5
 
-    topZ = 0#_waddle.bottomHeight
-    plateZ = topZ + 4.0
-    switchZ = plateZ + _waddle.plateThickness + 1.4
-    capsZ = switchZ + 9.5
+        kb = cq.Assembly()
+        if self.bottom:
+            self.addBottom(kb)
+        if self.plate:
+            self.addPlate(kb)
+        if self.switches:
+            self.addSwitches(kb)
+        if self.caps:
+            self.addCaps(kb)
+        if self.top:
+            self.addTop(kb)
+        if self.proMicro:
+            self.addProMicro(kb)
+        if self.socket:
+            self.addSocket(kb)
+        if self.magnetsTop:
+            self.addTopMagnets(kb)
+        if self.magnetsBottom:
+            self.addBottomMagnets(kb)
+        return kb
 
-
-    kb = cq.Assembly()
-
-    if bottom:
-        kb.add(_bottom
-                , name  = "bottom"
-                , color = cq.Color(0.8,0.8,0.8,0.71)
+    def addBottom(self, kb):
+        kb.add(self._bottom
+                , name  = "bottomL" if self.split else "bottom"
+                , color = cq.Color(0.8,0.8,0.8,1)
                 , loc   = cq.Location(cq.Vector(0,0,0))
                 )
-    if plate:
+        if self.split and self.bothSides:
+            kb.add(self._bottom
+                    , name  = "bottomR"
+                    , color = cq.Color(0.8,0.4,0.8,1)
+                    , loc   = cq.Location(cq.Vector(0,0,0), cq.Vector(0,0,1), 180)
+                    )
+
+    def addPlate(self, kb):
+        _plate = self._waddle.plate(self._waddle.cherryCut, self.pmx+2, self.pmy)
         kb.add(_plate
-                , name  = "plate"
+                , name  = "plateL" if self.split else "plate"
                 , color = cq.Color(1,1,1,1)
-                , loc   = cq.Location(cq.Vector(0,0,plateZ))
+                , loc   = cq.Location(cq.Vector(0,0,self.plateZ))
                 )
-    if switches:
-        kb.add(_waddle.switches()
-                , name  = "switches"
-                , color = cq.Color(0,0,0,1)
-                , loc   = cq.Location(cq.Vector(0,0,switchZ))
-                )
-    if caps:
-        kb.add(_waddle.caps()
-                , name  = "caps"
+        if self.split and self.bothSides:
+            kb.add(_plate
+                    , name  = "plateR"
+                    , color = cq.Color(0.6, 1, 1, 1)
+                    , loc   = cq.Location(cq.Vector(0,0,self.plateZ), cq.Vector(0,0,1), 180)
+                    )
+
+    def addTop(self, kb):
+        kb.add(self._waddle.top()
+                , name  = "topL" if self.split else "top"
                 , color = cq.Color(0.1,0.1,0.1,1)
-                , loc   = cq.Location(cq.Vector(0,0,capsZ))
-                )
-    if proMicro:
-        kb.add(_waddle.proMicro("c")
-                , name  = "proMicro"
-                , color = cq.Color(1,1,0.3,1)
-                , loc   = cq.Location(cq.Vector(pmx,pmy,pmz))
-                )
-    if socket:
-        kb.add(sock
-                , name  = "socket"
-                , color = cq.Color(0.3,0.5,0.3,1)
-                , loc   = cq.Location(cq.Vector(pmx+1,pmy,pmz+9.5))
-                )
-    if top:
-        kb.add(_waddle.top()
-                , name  = "top"
-                , color = cq.Color(0.1,0.1,0.1,1)
-                , loc   = cq.Location(cq.Vector(0,0,topZ))
+                , loc   = cq.Location(cq.Vector(0,0,self.topZ))
                 )
 
-    if magnetsTop:
-        kb.add(_waddle.magnets()
+        if self.split and self.bothSides:
+            kb.add(self._waddle.top()
+                    , name  = "topR"
+                    , color = cq.Color(0.3,0.3,0.3,1)
+                    , loc   = cq.Location(cq.Vector(0,0,self.topZ), cq.Vector(0,0,1), 180)
+                    )
+
+    def addSwitches(self, kb):
+        kb.add(self._waddle.switches()
+                , name  = "switches"
+                , color = cq.Color(0,0,0,1)
+                , loc   = cq.Location(cq.Vector(0,0,self.switchZ))
+                )
+
+    def addCaps(self, kb):
+        kb.add(self._waddle.caps()
+                , name  = "caps"
+                , color = cq.Color(0.1,0.1,0.1,1)
+                , loc   = cq.Location(cq.Vector(0,0,self.capsZ))
+                )
+
+    def addProMicro(self, kb):
+        kb.add(self._waddle.proMicro("c")
+                , name  = "proMicro"
+                , color = cq.Color(1,1,0.3,1)
+                , loc   = cq.Location(cq.Vector(self.pmx,self.pmy,self.pmz))
+                )
+
+    def addSocket(self, kb):
+        kb.add(self.sock
+                , name  = "socket"
+                , color = cq.Color(0.3,0.5,0.3,1)
+                , loc   = cq.Location(cq.Vector(self.pmx+1,self.pmy,self.pmz+9.5))
+                )
+
+    def addTopMagnets(self, kb):
+        kb.add(self._waddle.magnets()
                 , name  = "magnetsTop"
                 , color = cq.Color(0.5,0.5,0.5,1)
                 , loc   = cq.Location(cq.Vector(0,0,0))
             )
-    if magnetsBottom:
-        kb.add(_waddle.magnets()
+
+    def  addBottomMagnets(self, kb):
+        kb.add(self._waddle.magnets()
                 , name  = "magnetsBottom"
                 , color = cq.Color(0.5,0.5,0.5,1)
                 , loc   = cq.Location(cq.Vector(0,0,-5))
-            )
-    return kb
+             )
+     
 
-k = keyboard(bottom=False
+k = Keyboard(
+        bottom=True
         , plate=True
 #        , switches=True
 #        , caps=True
-#        , proMicro=True
-#        , socket=True
-#        , top=True
-#        , magnetsTop=True
-#        , magnetsBottom=True
-        )
+        , proMicro=True
+        , socket=True
+        , top=True
+        , magnetsTop=True
+        , magnetsBottom=True
+        , split = True
+        , bothSides = True
+        ).render()
 show_object(k)
 k.save("waddle_alt.step")

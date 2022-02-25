@@ -304,8 +304,8 @@ class waddle_split(waddle):
         botBB = bottom.findSolid().BoundingBox()
         botW2 = botBB.xlen/2
 
-        s1 = cq.Sketch().rect(botW2-super().space, botBB.ymax+0.2)
-        s2 = cq.Sketch().rect(botW2+super().space, -botBB.ymin+0.2)
+        s1 = cq.Sketch().rect(botW2-super().space/2, botBB.ymax+0.2)
+        s2 = cq.Sketch().rect(botW2+super().space/2, -botBB.ymin+0.2)
 
         s1y = s1._faces.BoundingBox().ylen/2
         s2y = s2._faces.BoundingBox().ylen/2
@@ -520,7 +520,6 @@ class Keyboard:
         self.split = split
         self.bothSides = bothSides
 
-    def render(self):
         self._waddle = waddle_split() if self.split else waddle()
         self._bottom = self._waddle.bottom()
         self.bbb = self._bottom.findSolid().BoundingBox()
@@ -528,6 +527,8 @@ class Keyboard:
         self.sockBox = self.sock.findSolid().BoundingBox()
         self.pmx = self.bbb.xmin+self.sockBox.xmax+6.5
         self.pmy = -self._waddle.space/2
+
+    def render(self):
         self.pmz = -3.5
         self.topZ = 0
         self.plateZ = self.topZ + 4.0
@@ -536,26 +537,34 @@ class Keyboard:
 
         kb = cq.Assembly(name="waddle")
         if self.bottom:
-            self.addBottom(kb)
+            self._addBottom(kb)
         if self.plate:
-            self.addPlate(kb)
+            self._addPlate(kb)
         if self.switches:
-            self.addSwitches(kb)
+            self._addSwitches(kb)
         if self.caps:
-            self.addCaps(kb)
+            self._addCaps(kb)
         if self.top:
-            self.addTop(kb)
+            self._addTop(kb)
         if self.proMicro:
-            self.addProMicro(kb)
+            self._addProMicro(kb)
         if self.socket:
-            self.addSocket(kb)
+            self._addSocket(kb)
         if self.magnetsTop:
-            self.addTopMagnets(kb)
+            self._addTopMagnets(kb)
         if self.magnetsBottom:
-            self.addBottomMagnets(kb)
+            self._addBottomMagnets(kb)
         return kb
 
-    def addBottom(self, kb):
+    def parts(self):
+        name = "waddle_split_" if self.split else "waddle_"
+        return {
+                name+"bottom": self._bottom
+                , name+"plate": self._waddle.plate(self._waddle.cherryCut, self.pmx+2, self.pmy)
+                , name+"top": self._waddle.top()
+                }
+
+    def _addBottom(self, kb):
         kb.add(self._bottom
                 , name  = "bottomL" if self.split else "bottom"
                 , color = cq.Color(0.8,0.8,0.8,1)
@@ -568,7 +577,7 @@ class Keyboard:
                     , loc   = cq.Location(cq.Vector(0,0,0), cq.Vector(0,0,1), 180)
                     )
 
-    def addPlate(self, kb):
+    def _addPlate(self, kb):
         _plate = self._waddle.plate(self._waddle.cherryCut, self.pmx+2, self.pmy)
         kb.add(_plate
                 , name  = "plateL" if self.split else "plate"
@@ -582,7 +591,7 @@ class Keyboard:
                     , loc   = cq.Location(cq.Vector(0,0,self.plateZ), cq.Vector(0,0,1), 180)
                     )
 
-    def addTop(self, kb):
+    def _addTop(self, kb):
         kb.add(self._waddle.top()
                 , name  = "topL" if self.split else "top"
                 , color = cq.Color(0.1,0.1,0.1,1)
@@ -596,42 +605,42 @@ class Keyboard:
                     , loc   = cq.Location(cq.Vector(0,0,self.topZ), cq.Vector(0,0,1), 180)
                     )
 
-    def addSwitches(self, kb):
+    def _addSwitches(self, kb):
         kb.add(self._waddle.switches()
                 , name  = "switches"
                 , color = cq.Color(0,0,0,1)
                 , loc   = cq.Location(cq.Vector(0,0,self.switchZ))
                 )
 
-    def addCaps(self, kb):
+    def _addCaps(self, kb):
         kb.add(self._waddle.caps()
                 , name  = "caps"
                 , color = cq.Color(0.1,0.1,0.1,1)
                 , loc   = cq.Location(cq.Vector(0,0,self.capsZ))
                 )
 
-    def addProMicro(self, kb):
+    def _addProMicro(self, kb):
         kb.add(self._waddle.proMicro("c")
                 , name  = "proMicro"
                 , color = cq.Color(1,1,0.3,1)
                 , loc   = cq.Location(cq.Vector(self.pmx,self.pmy,self.pmz))
                 )
 
-    def addSocket(self, kb):
+    def _addSocket(self, kb):
         kb.add(self.sock
                 , name  = "socket"
                 , color = cq.Color(0.3,0.5,0.3,1)
                 , loc   = cq.Location(cq.Vector(self.pmx+1,self.pmy,self.pmz+9.5))
                 )
 
-    def addTopMagnets(self, kb):
+    def _addTopMagnets(self, kb):
         kb.add(self._waddle.magnets()
                 , name  = "magnetsTop"
                 , color = cq.Color(0.5,0.5,0.5,1)
                 , loc   = cq.Location(cq.Vector(0,0,0))
             )
 
-    def  addBottomMagnets(self, kb):
+    def  _addBottomMagnets(self, kb):
         kb.add(self._waddle.magnets()
                 , name  = "magnetsBottom"
                 , color = cq.Color(0.5,0.5,0.5,1)
@@ -639,7 +648,7 @@ class Keyboard:
              )
      
 
-k = Keyboard(
+kb = Keyboard(
         bottom=True
         , plate=True
 #        , switches=True
@@ -651,6 +660,9 @@ k = Keyboard(
         , magnetsBottom=True
         , split = True
         , bothSides = True
-        ).render()
-show_object(k)
-k.save("waddle.step")
+        )
+parts = kb.parts()
+for n,p in parts.items():
+    cq.exporters.export(p, n+".stl")
+k = kb.render()
+k.save("waddle_split.step")

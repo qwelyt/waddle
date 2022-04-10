@@ -32,10 +32,11 @@ class Cap:
                 .loft()
                 )
 
-    def stem(self, h, type="cherry"):
+    def stem(self, h, d=5.6, type="cherry"):
+        supportL = 5
         return (cq.Workplane("XY")
                 .sketch()
-                .circle(5.6/2)
+                .circle(d/2)
                 .rect(1.2,4.2, mode="s")
                 .rect(4.2,1.2, mode="s")
                 .finalize()
@@ -44,31 +45,42 @@ class Cap:
                 .chamfer(0.25)
                 )
 
+    def stemSupport(self, height, width, diff, stemD):
+        w = width/3
+        d = diff/4
+        a = self._srect(w, 1, op="none")
+        b = self._srect(w+d, 1, op="none")
+
+        return (cq.Workplane("XY")
+                .placeSketch(a, b.moved(cq.Location(cq.Vector(-d/2,0,height))))
+                .loft()
+                )
+
+
+
     def row3(self):
         h = 8
         ih = h-2.4
         wd = 19
+        iwd = wd-3
         diff = -7
+        stemD = 5.6
+        sphereD = wd*1.6
+
         b = self._box(wd,wd, h, diff, 0,0, "none").fillet(0.7)
-        hollow = self._box(wd-3,wd-3, ih, diff, 0 ,0, "none")
-        dish = self._taperedCylinder(24,7,-2).translate((0,0,h+1))
-        #.translate(cq.Location(cq.Vector(0,0,10)))
+        hollow = self._box(iwd,iwd, ih, diff, 0 ,0, "none")
+        dish = self._taperedCylinder(wd*1.5,0.0001,-2.2).translate((0,0,h+1))
+        dish2 = cq.Workplane("XY").sphere(sphereD).translate((0,0,h+sphereD-1))
+        stem = self.stem(ih,stemD, "cherry")
+        stemSupport = self.stemSupport(ih, iwd, diff, stemD).translate((-stemD+0.1,0,0))
 
-        b = b.cut(dish).cut(hollow)
+        b = b.cut(dish2).cut(hollow)
 
-        b = b.union(self.stem(ih,"cherry"))
+        b = b.union(stem)
 
-        #b = b.faces(">>Y[13]").rect(2,4).extrude(5)
-        #b = b.union(cq.Workplane("XY").move(0,-5.6/1.5).rect(2,3).extrude(3))
-#        b = (b.faces(">Y[0]")
-#                .sketch()
-#                .rect(1,7)
-#                .finalize()
-#                .extrude(-3)
-#                )
+        b = b.union(stemSupport)
 
-        b = b.translate((0,0,-h/2))
-        return b
+        return b.translate((0,0,-h/2))
 
 d=7.97
 dsa1u = (cq.importers.importStep('DSA_1u.step')
@@ -79,7 +91,8 @@ dsa1u = (cq.importers.importStep('DSA_1u.step')
 cap = Cap()
 
 c = cap.row3()
+#show_object(cap.stemSupport(8-2.4, 19-3, -7, 5.6))
 show_object(c, options={"alpha":0, "color":(255,10,50)})
 #show_object(dsa1u)
 cq.exporters.export(c, "cap_row3.step", cq.exporters.ExportTypes.STEP)
-cq.exporters.export(c, "cap_row3.stl")
+cq.exporters.export(c.rotate((0,0,0),(0,1,0),-90), "cap_row3.stl")

@@ -20,6 +20,9 @@ use arduino_hal::{delay_ms,
                       Pin,
                   },
 };
+use arduino_hal::hal::port::Dynamic;
+use arduino_hal::port::mode::Floating;
+use arduino_hal::port::PinMode;
 use atmega_usbd::UsbBus;
 use avr_device::{asm::sleep, interrupt};
 use usb_device::{
@@ -31,10 +34,17 @@ use usbd_hid::{
     hid_class::HIDClass,
 };
 
+use crate::keyboard::Keyboard;
+
+mod layout;
+mod state;
+mod keycode;
+mod keyboard;
+
 #[entry]
 fn main() -> ! {
     let peripherals = Peripherals::take().unwrap();
-    let _pins = pins!(peripherals);
+    let pins = pins!(peripherals);
     let pll = peripherals.PLL;
     let usb = peripherals.USB_DEVICE;
 
@@ -61,11 +71,43 @@ fn main() -> ! {
         .device_sub_class(1) // Keyboard
         .build();
 
+    let rows = [
+        pins.a0.downgrade(),
+        pins.a1.downgrade(),
+        pins.a2.downgrade(),
+        pins.a3.downgrade()
+    ].map(|p| p.into_output());
+
+    let cols = [
+        pins.d2.downgrade(),
+        pins.d3.downgrade(),
+        pins.d4.downgrade(),
+        pins.d5.downgrade(),
+        pins.d6.downgrade(),
+        pins.d7.downgrade(),
+        pins.d8.downgrade(),
+        pins.d9.downgrade(),
+        pins.d10.downgrade(),
+        pins.d16.downgrade(),
+        pins.d14.downgrade(),
+        pins.d15.downgrade()
+    ].map(|p| p.into_pull_up_input());
+
+    let leds = [
+        pins.rx.downgrade(),
+        pins.tx.downgrade(),
+        pins.led_tx.downgrade()
+    ].map(|p| p.into_output());
+
     unsafe {
-        USB_CTX = Some(UsbContext {
+        KEYBOARD = Some(Keyboard::new(
             usb_device,
             hid_class,
-        })
+            rows,
+            cols,
+            leds,
+        )
+        )
     }
 
     unsafe { interrupt::enable() };
@@ -75,7 +117,7 @@ fn main() -> ! {
     }
 }
 
-static mut USB_CTX: Option<UsbContext> = None;
+static mut KEYBOARD: Option<Keyboard> = None;
 
 #[interrupt(atmega32u4)]
 fn USB_GEN() {
@@ -88,27 +130,10 @@ fn USB_COM() {
 }
 
 unsafe fn poll_usb() {
-    let ctx = unsafe { USB_CTX.as_mut().unwrap() };
+    let ctx = unsafe { KEYBOARD.as_mut().unwrap() };
     ctx.poll();
 }
 
-struct UsbContext {
-    usb_device: UsbDevice<'static, UsbBus>,
-    hid_class: HIDClass<'static, UsbBus>,
-}
-
-impl UsbContext {
-    fn poll(&mut self) {
-        let report = KeyboardReport {
-            modifier: 0,
-            reserved: 0,
-            leds: 0,
-            keycodes: [0; 6],
-        };
-
-        self.hid_class.push_input(&report).ok();
-    }
-}
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {

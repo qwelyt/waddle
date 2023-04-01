@@ -8,7 +8,7 @@ use usb_device::device::UsbDevice;
 use usbd_hid::descriptor::KeyboardReport;
 use usbd_hid::hid_class::HIDClass;
 
-use crate::layout::{COLS, LEDS, ROWS};
+use crate::layout::{BUTTONS, COLS, Key, LAYERS, Layout, LEDS, NUM_CHUNKS, ROWS};
 use crate::position::position::Position;
 use crate::state::State;
 
@@ -34,6 +34,7 @@ pub struct Keyboard {
     rows: Vec<EitherPin, ROWS>,
     cols: Vec<EitherPin, COLS>,
     leds: Vec<Pin<Output>, LEDS>,
+    layout: Layout,
     current_state: State,
     last_state: State,
 }
@@ -46,6 +47,7 @@ impl Keyboard {
         mut rows: Vec<Pin<Output>, ROWS>,
         mut cols: Vec<Pin<Output>, COLS>,
         mut leds: Vec<Pin<Output>, LEDS>,
+        layout: Layout,
     ) -> Self {
         // Put everything low to save ourselves from bad things.
         rows.iter_mut().map(|p| p.set_low());
@@ -81,6 +83,7 @@ impl Keyboard {
             rows: row_pins,
             cols: col_pins,
             leds,
+            layout,
             current_state: State::empty(),
             last_state: State::empty(),
         }
@@ -88,32 +91,69 @@ impl Keyboard {
     pub fn poll(&mut self) {
         self.current_state = self.scan();
         if !&self.current_state.eq(&self.last_state) {
-            let report = Keyboard::create_report(&self.current_state);
-            self.hid_class.push_input(&report).ok();
+            let reports = Self::create_report(&self.current_state, &self.layout);
+            for report in reports.iter() {
+                self.hid_class.push_input(report).ok();
+            }
             self.last_state = self.current_state.clone();
         }
     }
 
     fn scan(&mut self) -> State {
-        match self.scan_type {
+        let pressed = match self.scan_type {
             ScanType::ROW2COL => self.row2col(),
             ScanType::COL2ROW => self.col2row(),
         };
-        State::empty()
+        State::new(pressed)
     }
 
 
-    fn create_report(x: &State) -> KeyboardReport {
+    fn create_report(state: &State, layout: &Layout) -> Vec<KeyboardReport, NUM_CHUNKS> {
         // Check functions before building keys
         // Be sure to reset layer before running layer-editing functions!
+        let layer: u8 = state.pressed().iter().map(|p| layout.get_layer_mod(p)).sum();
 
-        let report = KeyboardReport {
-            modifier: 0,
-            reserved: 0,
-            leds: 0,
-            keycodes: [0; 6],
-        };
-        report
+        let mods: u8 = state.pressed()
+            .iter()
+            .map(|p| layout.get_mod(layer, p))
+            .filter(Option::is_some)
+            .map(Option::unwrap)
+            .sum();
+
+        let key_codes: Vec<u8, BUTTONS> = state.pressed()
+            .iter()
+            .map(|p| layout.get_non_mod(layer, p))
+            .filter(Option::is_some)
+            .map(Option::unwrap)
+            .collect();
+
+
+        let chunks = Self::chunkate(key_codes);
+        let reports: Vec<KeyboardReport, NUM_CHUNKS> = chunks.iter()
+            .map(|chunk| KeyboardReport {
+                modifier: mods,
+                reserved: 0,
+                leds: 0,
+                keycodes: chunk.clone(),
+            }).collect();
+
+        reports
+    }
+
+    fn chunkate(v: Vec<u8, BUTTONS>) -> Vec<[u8; 6], NUM_CHUNKS> {
+        let mut chunks: Vec<[u8; 6], NUM_CHUNKS> = Vec::new();
+        let mut ar: [u8; 6] = [0; 6];
+        for (i, kc) in v.iter().enumerate() {
+            if i % 6 == 0 {
+                chunks.push(ar.clone());
+                ar = [0; 6];
+            }
+            ar[i] = *kc;
+        }
+        if ar.iter().map(|u| *u as usize).sum::<usize>() != 0 {
+            chunks.push(ar.clone());
+        }
+        chunks
     }
     fn row2col(&mut self) -> IndexSet<Position, BuildHasherDefault<FnvHasher>, 64> {
         let mut pressed = FnvIndexSet::<Position, 64>::new();

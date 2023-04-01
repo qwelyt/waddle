@@ -10,10 +10,10 @@ pub mod position {
             Self { row, col }
         }
 
-        fn row(&self) -> u8 {
+        pub fn row(&self) -> u8 {
             self.row
         }
-        fn col(&self) -> u8 {
+        pub fn col(&self) -> u8 {
             self.col
         }
     }

@@ -5,7 +5,6 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(unused)]
 
-use core::alloc::Layout;
 use core::panic::PanicInfo;
 
 use arduino_hal::{delay_ms,
@@ -37,7 +36,7 @@ use usbd_hid::{
     hid_class::HIDClass,
 };
 
-use layout::{COLS, LEDS, ROWS};
+use layout::{COLS, Layout, LEDS, ROWS};
 
 use crate::keyboard::{Keyboard, ScanType};
 
@@ -109,6 +108,7 @@ fn main() -> ! {
     ];
 
 
+    let layout = Layout::new();
     unsafe {
         KEYBOARD = Some(Keyboard::new(
             usb_device,
@@ -117,6 +117,7 @@ fn main() -> ! {
             rows,
             cols,
             leds,
+            layout,
         )
         )
     }

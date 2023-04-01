@@ -132,4 +132,32 @@ pub mod k {
             pub const DASH: u8 = SLASH;
         }
     }
+
+    pub fn is_mod(key: &u8) -> bool {
+        match *key {
+            L_CTRL => true,
+            L_SHFT => true,
+            L_ALT => true,
+            L_SUPR => true,
+            R_CTRL => true,
+            R_SHFT => true,
+            R_ALT => true,
+            R_SUPR => true,
+            _ => false
+        }
+    }
+
+    pub fn to_mod_bitfield(key: u8) -> u8 {
+        match key {
+            L_CTRL => 0b00000001,
+            L_SHFT => 0b00000010,
+            L_ALT => 0b00000100,
+            L_SUPR => 0b00001000,
+            R_CTRL => 0b00010000,
+            R_SHFT => 0b00100000,
+            R_ALT => 0b01000000,
+            R_SUPR => 0b10000000,
+            _ => 0b0
+        }
+    }
 }

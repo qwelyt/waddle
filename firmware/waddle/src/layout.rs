@@ -1,21 +1,10 @@
-// TODO: Let the matrix hold Enums that are either a Key or a Function.
-// If key, then we just check the key value, add it to mods or keycodes.
-// If function, then we run the function, sending in the state. This is probably chaning the
-// state of the leds or something like that. Maybe change the layout on the fly... hmm
-// [ layer
-//   [row
-//     [col
-//       KeyCode(A) / Function(state -> doShit())
-//     ]
-//   ]
-// ]
-
 use k::norde::se;
-use Key::KeyCode;
+use Key::{KeyCode, LayerCh};
 
 use crate::keycode::k;
 use crate::keycode::k::layer;
 use crate::layout::Key::{Function, LayerMo};
+use crate::position::position::Position;
 use crate::state::State;
 
 pub enum Key {
@@ -27,6 +16,8 @@ pub enum Key {
 
 pub const ROWS: usize = 4;
 pub const COLS: usize = 12;
+pub const BUTTONS: usize = ROWS * COLS;
+pub const NUM_CHUNKS: usize = BUTTONS / 6;
 pub const LAYERS: usize = 3;
 pub const LEDS: usize = 3;
 pub const MATRIX: [[[Key; COLS]; ROWS]; LAYERS] = [
@@ -49,3 +40,45 @@ pub const MATRIX: [[[Key; COLS]; ROWS]; LAYERS] = [
         [KeyCode(k::L_CTRL), KeyCode(k::L_SUPR), KeyCode(k::BS_N_PIPE), KeyCode(k::L_ALT), KeyCode(layer::LOWER), KeyCode(k::SPACE), KeyCode(k::RETURN), KeyCode(layer::RAISE), KeyCode(k::R_ALT), KeyCode(k::MENU), KeyCode(k::R_SUPR), KeyCode(k::R_CTRL), ],
     ],
 ];
+
+pub struct Layout {
+    matrix: [[[Key; COLS]; ROWS]; LAYERS],
+}
+
+
+impl Layout {
+    pub fn new() -> Self {
+        Self { matrix: MATRIX }
+    }
+    pub fn get_layer_mod(&self, position: &Position) -> u8 {
+        let mut l = 0;
+        for row in self.matrix[0].iter() {
+            for key in row.iter() {
+                l += match key {
+                    KeyCode(_) => { 0 }
+                    Function(_) => { 0 }
+                    LayerMo(la) => { *la }
+                    LayerCh(_) => { 0 }
+                }
+            }
+        }
+        l
+    }
+
+    pub fn get_keycode(&self, layer: u8, position: &Position) -> Option<u8> {
+        match self.matrix[layer as usize][position.row() as usize][position.col() as usize] {
+            KeyCode(kc) => { Some(kc) }
+            Function(_) => { None }
+            LayerMo(_) => { None }
+            LayerCh(_) => { None }
+        }
+    }
+
+    pub fn get_mod(&self, layer: u8, position: &Position) -> Option<u8> {
+        self.get_keycode(layer, position).filter(k::is_mod).map(k::to_mod_bitfield)
+    }
+
+    pub fn get_non_mod(&self, layet: u8, position: &Position) -> Option<u8> {
+        self.get_keycode(layet, position).filter(|u| !k::is_mod(u))
+    }
+}

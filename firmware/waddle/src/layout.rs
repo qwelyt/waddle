@@ -10,17 +10,19 @@
 //   ]
 // ]
 
-use K::norde::se;
+use k::norde::se;
 use Key::KeyCode;
 
-use crate::keycode::K;
-use crate::keycode::K::layer;
-use crate::layout::Key::Function;
+use crate::keycode::k;
+use crate::keycode::k::layer;
+use crate::layout::Key::{Function, LayerMo};
 use crate::state::State;
 
-enum Key {
+pub enum Key {
     KeyCode(u8),
     Function(fn(&mut State)),
+    LayerMo(u8),
+    LayerCh(u8),
 }
 
 pub const ROWS: usize = 4;
@@ -29,38 +31,21 @@ pub const LAYERS: usize = 3;
 pub const LEDS: usize = 3;
 pub const MATRIX: [[[Key; COLS]; ROWS]; LAYERS] = [
     [
-        [KeyCode(K::TAB), KeyCode(K::Q), KeyCode(K::W), KeyCode(K::E), KeyCode(K::R), KeyCode(K::T), KeyCode(K::Y), KeyCode(K::U), KeyCode(K::I), KeyCode(K::O), KeyCode(K::P), KeyCode(se::Å), ],
-        [KeyCode(K::ESC), KeyCode(K::A), KeyCode(K::S), KeyCode(K::D), KeyCode(K::F), KeyCode(K::G), KeyCode(K::H), KeyCode(K::J), KeyCode(K::K), KeyCode(K::L), KeyCode(se::Ö), KeyCode(se::Ä), ],
-        [KeyCode(K::L_SHFT), KeyCode(K::Z), KeyCode(K::X), KeyCode(K::C), KeyCode(K::V), KeyCode(K::B), KeyCode(K::N), KeyCode(K::M), KeyCode(K::COMMA), KeyCode(K::DOT), KeyCode(se::DASH), KeyCode(K::R_SHFT), ],
-        [KeyCode(K::L_CTRL), KeyCode(K::L_SUPR), KeyCode(K::BS_N_PIPE), KeyCode(K::L_ALT), Function(l1), KeyCode(K::SPACE), KeyCode(K::RETURN), Function(l2), KeyCode(K::R_ALT), KeyCode(K::MENU), KeyCode(K::R_SUPR), KeyCode(K::R_CTRL), ],
+        [KeyCode(k::TAB), KeyCode(k::Q), KeyCode(k::W), KeyCode(k::E), KeyCode(k::R), KeyCode(k::T), KeyCode(k::Y), KeyCode(k::U), KeyCode(k::I), KeyCode(k::O), KeyCode(k::P), KeyCode(se::Å), ],
+        [KeyCode(k::ESC), KeyCode(k::A), KeyCode(k::S), KeyCode(k::D), KeyCode(k::F), KeyCode(k::G), KeyCode(k::H), KeyCode(k::J), KeyCode(k::K), KeyCode(k::L), KeyCode(se::Ö), KeyCode(se::Ä), ],
+        [KeyCode(k::L_SHFT), KeyCode(k::Z), KeyCode(k::X), KeyCode(k::C), KeyCode(k::V), KeyCode(k::B), KeyCode(k::N), KeyCode(k::M), KeyCode(k::COMMA), KeyCode(k::DOT), KeyCode(se::DASH), KeyCode(k::R_SHFT), ],
+        [KeyCode(k::L_CTRL), KeyCode(k::L_SUPR), KeyCode(k::BS_N_PIPE), KeyCode(k::L_ALT), LayerMo(1), KeyCode(k::SPACE), KeyCode(k::RETURN), LayerMo(2), KeyCode(k::R_ALT), KeyCode(k::MENU), KeyCode(k::R_SUPR), KeyCode(k::R_CTRL), ],
     ],
     [
-        [KeyCode(K::TAB), KeyCode(K::Q), KeyCode(K::W), KeyCode(K::E), KeyCode(K::R), KeyCode(K::T), KeyCode(K::Y), KeyCode(K::U), KeyCode(K::I), KeyCode(K::O), KeyCode(K::P), KeyCode(se::Å), ],
-        [KeyCode(K::ESC), KeyCode(K::A), KeyCode(K::S), KeyCode(K::D), KeyCode(K::F), KeyCode(K::G), KeyCode(K::H), KeyCode(K::J), KeyCode(K::K), KeyCode(K::L), KeyCode(se::Ö), KeyCode(se::Ä), ],
-        [KeyCode(K::L_SHFT), KeyCode(K::Z), KeyCode(K::X), KeyCode(K::C), KeyCode(K::V), KeyCode(K::B), KeyCode(K::N), KeyCode(K::M), KeyCode(K::COMMA), KeyCode(K::DOT), KeyCode(se::DASH), KeyCode(K::R_SHFT), ],
-        [KeyCode(K::L_CTRL), KeyCode(K::L_SUPR), KeyCode(K::BS_N_PIPE), KeyCode(K::L_ALT), KeyCode(layer::LOWER), KeyCode(K::SPACE), KeyCode(K::RETURN), KeyCode(layer::RAISE), KeyCode(K::R_ALT), KeyCode(K::MENU), KeyCode(K::R_SUPR), KeyCode(K::R_CTRL), ],
+        [KeyCode(k::TAB), KeyCode(k::Q), KeyCode(k::W), KeyCode(k::E), KeyCode(k::R), KeyCode(k::T), KeyCode(k::Y), KeyCode(k::U), KeyCode(k::I), KeyCode(k::O), KeyCode(k::P), KeyCode(se::Å), ],
+        [KeyCode(k::ESC), KeyCode(k::A), KeyCode(k::S), KeyCode(k::D), KeyCode(k::F), KeyCode(k::G), KeyCode(k::H), KeyCode(k::J), KeyCode(k::K), KeyCode(k::L), KeyCode(se::Ö), KeyCode(se::Ä), ],
+        [KeyCode(k::L_SHFT), KeyCode(k::Z), KeyCode(k::X), KeyCode(k::C), KeyCode(k::V), KeyCode(k::B), KeyCode(k::N), KeyCode(k::M), KeyCode(k::COMMA), KeyCode(k::DOT), KeyCode(se::DASH), KeyCode(k::R_SHFT), ],
+        [KeyCode(k::L_CTRL), KeyCode(k::L_SUPR), KeyCode(k::BS_N_PIPE), KeyCode(k::L_ALT), KeyCode(layer::LOWER), KeyCode(k::SPACE), KeyCode(k::RETURN), KeyCode(layer::RAISE), KeyCode(k::R_ALT), KeyCode(k::MENU), KeyCode(k::R_SUPR), KeyCode(k::R_CTRL), ],
     ],
     [
-        [KeyCode(K::TAB), KeyCode(K::Q), KeyCode(K::W), KeyCode(K::E), KeyCode(K::R), KeyCode(K::T), KeyCode(K::Y), KeyCode(K::U), KeyCode(K::I), KeyCode(K::O), KeyCode(K::P), KeyCode(se::Å), ],
-        [KeyCode(K::ESC), KeyCode(K::A), KeyCode(K::S), KeyCode(K::D), KeyCode(K::F), KeyCode(K::G), KeyCode(K::H), KeyCode(K::J), KeyCode(K::K), KeyCode(K::L), KeyCode(se::Ö), KeyCode(se::Ä), ],
-        [KeyCode(K::L_SHFT), KeyCode(K::Z), KeyCode(K::X), KeyCode(K::C), KeyCode(K::V), KeyCode(K::B), KeyCode(K::N), KeyCode(K::M), KeyCode(K::COMMA), KeyCode(K::DOT), KeyCode(se::DASH), KeyCode(K::R_SHFT), ],
-        [KeyCode(K::L_CTRL), KeyCode(K::L_SUPR), KeyCode(K::BS_N_PIPE), KeyCode(K::L_ALT), KeyCode(layer::LOWER), KeyCode(K::SPACE), KeyCode(K::RETURN), KeyCode(layer::RAISE), KeyCode(K::R_ALT), KeyCode(K::MENU), KeyCode(K::R_SUPR), KeyCode(K::R_CTRL), ],
+        [KeyCode(k::TAB), KeyCode(k::Q), KeyCode(k::W), KeyCode(k::E), KeyCode(k::R), KeyCode(k::T), KeyCode(k::Y), KeyCode(k::U), KeyCode(k::I), KeyCode(k::O), KeyCode(k::P), KeyCode(se::Å), ],
+        [KeyCode(k::ESC), KeyCode(k::A), KeyCode(k::S), KeyCode(k::D), KeyCode(k::F), KeyCode(k::G), KeyCode(k::H), KeyCode(k::J), KeyCode(k::K), KeyCode(k::L), KeyCode(se::Ö), KeyCode(se::Ä), ],
+        [KeyCode(k::L_SHFT), KeyCode(k::Z), KeyCode(k::X), KeyCode(k::C), KeyCode(k::V), KeyCode(k::B), KeyCode(k::N), KeyCode(k::M), KeyCode(k::COMMA), KeyCode(k::DOT), KeyCode(se::DASH), KeyCode(k::R_SHFT), ],
+        [KeyCode(k::L_CTRL), KeyCode(k::L_SUPR), KeyCode(k::BS_N_PIPE), KeyCode(k::L_ALT), KeyCode(layer::LOWER), KeyCode(k::SPACE), KeyCode(k::RETURN), KeyCode(layer::RAISE), KeyCode(k::R_ALT), KeyCode(k::MENU), KeyCode(k::R_SUPR), KeyCode(k::R_CTRL), ],
     ],
 ];
-
-
-pub fn mo(l: u8, state: &mut State) -> fn(&mut State) {
-    |s| { layer(l, s) }
-}
-
-pub fn l1(state: &mut State) {
-    mo(1, state)(state)
-}
-
-pub fn l2(state: &mut State) {
-    mo(2, state)(state)
-}
-
-pub fn layer(layer: u8, state: &mut State) {
-    state.layer_mo(layer)
-}

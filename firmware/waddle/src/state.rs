@@ -1,17 +1,34 @@
-#[derive(Copy, Clone, Eq, PartialEq)]
+use hash32::{BuildHasherDefault, FnvHasher};
+use heapless::{FnvIndexSet, IndexSet};
+
+use crate::position::position::Position;
+
+#[derive(Clone, Debug)]
 pub struct State {
     layer: u8,
-
+    pressed: IndexSet<Position, BuildHasherDefault<FnvHasher>, 64>,
 }
 
 
 impl State {
-    pub fn new() -> Self {
+    pub fn empty() -> Self {
         Self {
-            layer: 0
+            layer: 0,
+            pressed: FnvIndexSet::new(),
         }
     }
-    pub fn layer_mo(&mut self, layer: u8) {
-        self.layer += layer
+    pub fn new(layer: u8, pressed: FnvIndexSet<Position, 64>) -> Self {
+        Self {
+            layer,
+            pressed,
+        }
     }
 }
+
+impl PartialEq<Self> for State {
+    fn eq(&self, other: &Self) -> bool {
+        self.layer == other.layer && self.pressed.eq(&other.pressed)
+    }
+}
+
+impl Eq for State {}

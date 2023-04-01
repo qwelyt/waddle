@@ -1,4 +1,4 @@
-pub mod K {
+pub mod k {
     pub const NONE: u8 = 0x00;
     pub const A: u8 = 0x04;
     pub const B: u8 = 0x05;
@@ -124,7 +124,7 @@ pub mod K {
 
     pub mod norde {
         pub mod se {
-            use crate::keycode::K::{COLON, OBRAKET, QUOTE, SLASH};
+            use crate::keycode::k::{COLON, OBRAKET, QUOTE, SLASH};
 
             pub const Å: u8 = OBRAKET;
             pub const Ö: u8 = COLON;

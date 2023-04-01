@@ -5,6 +5,7 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(unused)]
 
+use core::alloc::Layout;
 use core::panic::PanicInfo;
 
 use arduino_hal::{delay_ms,
@@ -21,10 +22,12 @@ use arduino_hal::{delay_ms,
                   },
 };
 use arduino_hal::hal::port::Dynamic;
-use arduino_hal::port::mode::Floating;
+use arduino_hal::port::mode::{AnyInput, Floating};
 use arduino_hal::port::PinMode;
 use atmega_usbd::UsbBus;
 use avr_device::{asm::sleep, interrupt};
+use hash32::{BuildHasherDefault, FnvHasher};
+use heapless::{FnvIndexSet, IndexSet, Vec};
 use usb_device::{
     class_prelude::UsbBusAllocator,
     device::{UsbDevice, UsbDeviceBuilder, UsbVidPid},
@@ -34,12 +37,17 @@ use usbd_hid::{
     hid_class::HIDClass,
 };
 
-use crate::keyboard::Keyboard;
+use layout::{COLS, LEDS, ROWS};
+
+use crate::keyboard::{Keyboard, ScanType};
 
 mod layout;
 mod state;
 mod keycode;
 mod keyboard;
+mod position;
+mod macros;
+
 
 #[entry]
 fn main() -> ! {
@@ -71,38 +79,42 @@ fn main() -> ! {
         .device_sub_class(1) // Keyboard
         .build();
 
-    let rows = [
-        pins.a0.downgrade(),
-        pins.a1.downgrade(),
-        pins.a2.downgrade(),
-        pins.a3.downgrade()
-    ].map(|p| p.into_output());
+    let rows = vec![
+        pins.a0.downgrade().into_output(),
+        pins.a1.downgrade().into_output(),
+        pins.a2.downgrade().into_output(),
+        pins.a3.downgrade().into_output(),
+    ];//.iter().map(|p| p.into_output()).collect();
 
-    let cols = [
-        pins.d2.downgrade(),
-        pins.d3.downgrade(),
-        pins.d4.downgrade(),
-        pins.d5.downgrade(),
-        pins.d6.downgrade(),
-        pins.d7.downgrade(),
-        pins.d8.downgrade(),
-        pins.d9.downgrade(),
-        pins.d10.downgrade(),
-        pins.d16.downgrade(),
-        pins.d14.downgrade(),
-        pins.d15.downgrade()
-    ].map(|p| p.into_pull_up_input());
+    let cols = vec![
+        pins.d2.downgrade().into_output(),
+        pins.d3.downgrade().into_output(),
+        pins.d4.downgrade().into_output(),
+        pins.d5.downgrade().into_output(),
+        pins.d6.downgrade().into_output(),
+        pins.d7.downgrade().into_output(),
+        pins.d8.downgrade().into_output(),
+        pins.d9.downgrade().into_output(),
+        pins.d10.downgrade().into_output(),
+        pins.d16.downgrade().into_output(),
+        pins.d14.downgrade().into_output(),
+        pins.d15.downgrade().into_output(),
+    ];//.iter_mut().map(|p| p.into_output()).collect();
 
-    let leds = [
-        pins.rx.downgrade(),
-        pins.tx.downgrade(),
-        pins.led_tx.downgrade()
-    ].map(|p| p.into_output());
+
+    let leds = vec![
+        pins.rx.downgrade().into_output(),
+        pins.tx.downgrade().into_output(),
+        pins.led_tx.downgrade().into_output(),
+    ];
+
+    // let leds = led_pins.iter_mut().map(|p| p.into_output()).collect();
 
     unsafe {
         KEYBOARD = Some(Keyboard::new(
             usb_device,
             hid_class,
+            ScanType::ROW2COL,
             rows,
             cols,
             leds,

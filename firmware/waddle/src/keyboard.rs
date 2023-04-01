@@ -52,8 +52,6 @@ impl Keyboard {
         cols.iter_mut().map(|p| p.set_low());
         leds.iter_mut().map(|p| p.set_low());
 
-        // let mut row_pins: [EitherPin; ROWS] = [EitherPin::None; ROWS];
-        // let mut col_pins: [EitherPin; COLS] = [EitherPin::None; COLS];
         let mut row_pins: Vec<EitherPin, ROWS> = Vec::new();
         let mut col_pins: Vec<EitherPin, COLS> = Vec::new();
         match scan_type {
@@ -80,21 +78,19 @@ impl Keyboard {
             usb_device,
             hid_class,
             scan_type,
-            rows: row_pins,//.try_into().unwrap(),
-            cols: col_pins,//.try_into().unwrap(),
-            // rows: demo(row_pins),
-            // cols: demo(col_pins),
+            rows: row_pins,
+            cols: col_pins,
             leds,
             current_state: State::empty(),
             last_state: State::empty(),
         }
     }
     pub fn poll(&mut self) {
-        // let pin = self.leds.first().unwrap().downgrade();
+        self.current_state = self.scan();
         if !&self.current_state.eq(&self.last_state) {
-            self.current_state = self.scan();
             let report = Keyboard::create_report(&self.current_state);
             self.hid_class.push_input(&report).ok();
+            self.last_state = self.current_state.clone();
         }
     }
 

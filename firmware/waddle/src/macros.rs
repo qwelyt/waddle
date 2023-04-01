@@ -7,7 +7,7 @@ macro_rules! count_tts {
 
 #[macro_export]
 macro_rules! vec {
-    ( $( $x:expr ),* ) => {{
+    ( $( $x:expr ),* $(,)?) => {{
         const C: usize = count_tts!($($x),*);
         let mut temp_vec: heapless::Vec<_, C> = heapless::Vec::new();
         $(

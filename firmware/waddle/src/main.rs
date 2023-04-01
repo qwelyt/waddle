@@ -84,7 +84,7 @@ fn main() -> ! {
         pins.a1.downgrade().into_output(),
         pins.a2.downgrade().into_output(),
         pins.a3.downgrade().into_output(),
-    ];//.iter().map(|p| p.into_output()).collect();
+    ];
 
     let cols = vec![
         pins.d2.downgrade().into_output(),
@@ -99,7 +99,7 @@ fn main() -> ! {
         pins.d16.downgrade().into_output(),
         pins.d14.downgrade().into_output(),
         pins.d15.downgrade().into_output(),
-    ];//.iter_mut().map(|p| p.into_output()).collect();
+    ];
 
 
     let leds = vec![
@@ -108,7 +108,6 @@ fn main() -> ! {
         pins.led_tx.downgrade().into_output(),
     ];
 
-    // let leds = led_pins.iter_mut().map(|p| p.into_output()).collect();
 
     unsafe {
         KEYBOARD = Some(Keyboard::new(

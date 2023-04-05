@@ -2,8 +2,7 @@ use arduino_hal::hal::port::Dynamic;
 use arduino_hal::port::mode::{Input, Output, PullUp};
 use arduino_hal::port::Pin;
 use atmega_usbd::UsbBus;
-use hash32::{BuildHasherDefault, FnvHasher, Hasher};
-use heapless::{FnvIndexSet, IndexSet, Vec};
+use heapless::Vec;
 use usb_device::device::UsbDevice;
 use usbd_hid::descriptor::KeyboardReport;
 use usbd_hid::hid_class::HIDClass;
@@ -35,7 +34,6 @@ pub struct Keyboard {
     cols: Vec<EitherPin, COLS>,
     leds: Vec<Pin<Output>, LEDS>,
     layout: Layout,
-    current_state: State,
     last_state: State,
 }
 
@@ -50,30 +48,30 @@ impl Keyboard {
         layout: Layout,
     ) -> Self {
         // Put everything low to save ourselves from bad things.
-        rows.iter_mut().map(|p| p.set_low());
-        cols.iter_mut().map(|p| p.set_low());
-        leds.iter_mut().map(|p| p.set_low());
+        // rows.iter_mut().for_each(|p| p.set_low());
+        // cols.iter_mut().for_each(|p| p.set_low());
+        // leds.iter_mut().for_each(|p| p.set_low());
 
         let mut row_pins: Vec<EitherPin, ROWS> = Vec::new();
         let mut col_pins: Vec<EitherPin, COLS> = Vec::new();
-        match scan_type {
-            ScanType::ROW2COL => {
-                for (i, pin) in rows.into_iter().enumerate() {
-                    row_pins[i] = EitherPin::Output(pin.into_output_high());
-                }
-                for (i, pin) in cols.into_iter().enumerate() {
-                    col_pins[i] = EitherPin::Input(pin.into_pull_up_input());
-                }
-            }
-            ScanType::COL2ROW => {
-                for (i, pin) in rows.into_iter().enumerate() {
-                    row_pins[i] = EitherPin::Input(pin.into_pull_up_input());
-                }
-                for (i, pin) in cols.into_iter().enumerate() {
-                    col_pins[i] = EitherPin::Output(pin.into_output_high())
-                }
-            }
-        };
+        // match scan_type {
+        //     ScanType::ROW2COL => {
+        //         for (i, pin) in rows.into_iter().enumerate() {
+        //             row_pins.insert(i, EitherPin::Output(pin.into_output_high())).ok();
+        //         }
+        //         for (i, pin) in cols.into_iter().enumerate() {
+        //             col_pins.insert(i, EitherPin::Input(pin.into_pull_up_input())).ok();
+        //         }
+        //     }
+        //     ScanType::COL2ROW => {
+        //         for (i, pin) in rows.into_iter().enumerate() {
+        //             row_pins.insert(i, EitherPin::Input(pin.into_pull_up_input())).ok();
+        //         }
+        //         for (i, pin) in cols.into_iter().enumerate() {
+        //             col_pins.insert(i, EitherPin::Output(pin.into_output_high())).ok();
+        //         }
+        //     }
+        // };
 
 
         Self {
@@ -84,27 +82,36 @@ impl Keyboard {
             cols: col_pins,
             leds,
             layout,
-            current_state: State::empty(),
             last_state: State::empty(),
         }
     }
     pub fn poll(&mut self) {
-        self.current_state = self.scan();
-        if !&self.current_state.eq(&self.last_state) {
-            let reports = Self::create_report(&self.current_state, &self.layout);
-            for report in reports.iter() {
-                self.hid_class.push_input(report).ok();
+        if self.usb_device.poll(&mut [&mut self.hid_class]) {
+            let mut report_buf = [0u8; 1];
+
+            if self.hid_class.pull_raw_output(&mut report_buf).is_ok() {
+                if report_buf[0] & 2 != 0 {
+                    self.leds.iter_mut().for_each(|p| p.set_high());
+                } else {
+                    self.leds.iter_mut().for_each(|p| p.set_low());
+                }
             }
-            self.last_state = self.current_state.clone();
         }
+        // let current_state = self.scan();
+        // if !&self.current_state.eq(&self.last_state) {
+        //     let reports = Self::create_report(&self.current_state, &self.layout);
+        //     for report in reports.iter() {
+        //         self.hid_class.push_input(report).ok();
+        //     }
+        //     self.last_state = self.current_state.clone();
+        // }
     }
 
     fn scan(&mut self) -> State {
-        let pressed = match self.scan_type {
+        match self.scan_type {
             ScanType::ROW2COL => self.row2col(),
             ScanType::COL2ROW => self.col2row(),
-        };
-        State::new(pressed)
+        }
     }
 
 
@@ -155,21 +162,18 @@ impl Keyboard {
         }
         chunks
     }
-    fn row2col(&mut self) -> IndexSet<Position, BuildHasherDefault<FnvHasher>, 64> {
-        let mut pressed = FnvIndexSet::<Position, 64>::new();
+    fn row2col(&mut self) -> State {
+        let mut state = State::empty();
         for (r, row) in self.rows.iter_mut().enumerate() {
             Self::low(row);
             for (c, col) in self.cols.iter_mut().enumerate() {
                 if Self::is_low(col) {
-                    pressed.insert(Position::new(
-                        u8::try_from(r).unwrap(),
-                        u8::try_from(c).unwrap(),
-                    ));
+                    state.set_pressed(r, c);
                 }
             }
             Self::high(row);
         }
-        pressed
+        state
     }
 
     fn is_low(col: &mut EitherPin) -> bool {
@@ -195,7 +199,7 @@ impl Keyboard {
             EitherPin::None => {}
         }
     }
-    fn col2row(&self) -> IndexSet<Position, BuildHasherDefault<FnvHasher>, 64> {
-        FnvIndexSet::<Position, 64>::new()
+    fn col2row(&self) -> State {
+        State::empty()
     }
 }

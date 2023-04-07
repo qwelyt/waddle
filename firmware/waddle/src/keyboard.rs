@@ -1,5 +1,6 @@
-use arduino_hal::hal::port::Dynamic;
-use arduino_hal::port::mode::{Input, Output, PullUp};
+use arduino_hal::delay_ms;
+use arduino_hal::hal::port::{Dynamic, PD1, PF4};
+use arduino_hal::port::mode::{Floating, Input, Output, PullUp};
 use arduino_hal::port::Pin;
 use atmega_usbd::UsbBus;
 use heapless::Vec;
@@ -7,7 +8,7 @@ use usb_device::device::UsbDevice;
 use usbd_hid::descriptor::KeyboardReport;
 use usbd_hid::hid_class::HIDClass;
 
-use crate::layout::{BUTTONS, COLS, Key, LAYERS, Layout, LEDS, NUM_CHUNKS, ROWS};
+use crate::layout::{BUTTONS, COLS, Key, LAYERS, Layout, LAYOUT, LEDS, NUM_CHUNKS, ROWS};
 use crate::position::position::Position;
 use crate::state::State;
 
@@ -33,55 +34,59 @@ pub struct Keyboard {
     rows: Vec<EitherPin, ROWS>,
     cols: Vec<EitherPin, COLS>,
     leds: Vec<Pin<Output>, LEDS>,
-    layout: Layout,
     last_state: State,
 }
 
 impl Keyboard {
-    pub fn new(
+    pub fn row2col(
         usb_device: UsbDevice<'static, UsbBus>,
         hid_class: HIDClass<'static, UsbBus>,
-        scan_type: ScanType,
         mut rows: Vec<Pin<Output>, ROWS>,
-        mut cols: Vec<Pin<Output>, COLS>,
+        mut cols: Vec<Pin<Input<PullUp>>, COLS>,
         mut leds: Vec<Pin<Output>, LEDS>,
-        layout: Layout,
     ) -> Self {
-        // Put everything low to save ourselves from bad things.
-        // rows.iter_mut().for_each(|p| p.set_low());
-        // cols.iter_mut().for_each(|p| p.set_low());
-        // leds.iter_mut().for_each(|p| p.set_low());
-
         let mut row_pins: Vec<EitherPin, ROWS> = Vec::new();
         let mut col_pins: Vec<EitherPin, COLS> = Vec::new();
-        // match scan_type {
-        //     ScanType::ROW2COL => {
-        //         for (i, pin) in rows.into_iter().enumerate() {
-        //             row_pins.insert(i, EitherPin::Output(pin.into_output_high())).ok();
-        //         }
-        //         for (i, pin) in cols.into_iter().enumerate() {
-        //             col_pins.insert(i, EitherPin::Input(pin.into_pull_up_input())).ok();
-        //         }
-        //     }
-        //     ScanType::COL2ROW => {
-        //         for (i, pin) in rows.into_iter().enumerate() {
-        //             row_pins.insert(i, EitherPin::Input(pin.into_pull_up_input())).ok();
-        //         }
-        //         for (i, pin) in cols.into_iter().enumerate() {
-        //             col_pins.insert(i, EitherPin::Output(pin.into_output_high())).ok();
-        //         }
-        //     }
-        // };
 
-
+        for (i, pin) in cols.into_iter().enumerate() {
+            col_pins.insert(i, EitherPin::Input(pin));
+        }
+        for (i, pin) in rows.into_iter().enumerate() {
+            row_pins.insert(i, EitherPin::Output(pin));
+        }
         Self {
             usb_device,
             hid_class,
-            scan_type,
+            scan_type: ScanType::ROW2COL,
             rows: row_pins,
             cols: col_pins,
             leds,
-            layout,
+            last_state: State::empty(),
+        }
+    }
+    pub fn col2row(
+        usb_device: UsbDevice<'static, UsbBus>,
+        hid_class: HIDClass<'static, UsbBus>,
+        mut rows: Vec<Pin<Input<PullUp>>, ROWS>,
+        mut cols: Vec<Pin<Output>, COLS>,
+        mut leds: Vec<Pin<Output>, LEDS>,
+    ) -> Self {
+        let mut row_pins: Vec<EitherPin, ROWS> = Vec::new();
+        let mut col_pins: Vec<EitherPin, COLS> = Vec::new();
+
+        for (i, pin) in cols.into_iter().enumerate() {
+            col_pins.insert(i, EitherPin::Output(pin));
+        }
+        for (i, pin) in rows.into_iter().enumerate() {
+            row_pins.insert(i, EitherPin::Input(pin));
+        }
+        Self {
+            usb_device,
+            hid_class,
+            scan_type: ScanType::COL2ROW,
+            rows: row_pins,
+            cols: col_pins,
+            leds,
             last_state: State::empty(),
         }
     }
@@ -90,79 +95,40 @@ impl Keyboard {
             let mut report_buf = [0u8; 1];
 
             if self.hid_class.pull_raw_output(&mut report_buf).is_ok() {
-                if report_buf[0] & 2 != 0 {
-                    self.leds.iter_mut().for_each(|p| p.set_high());
-                } else {
-                    self.leds.iter_mut().for_each(|p| p.set_low());
-                }
+                if report_buf[0] & 2 != 0 {} else {}
             }
         }
-        // let current_state = self.scan();
-        // if !&self.current_state.eq(&self.last_state) {
-        //     let reports = Self::create_report(&self.current_state, &self.layout);
-        //     for report in reports.iter() {
-        //         self.hid_class.push_input(report).ok();
-        //     }
-        //     self.last_state = self.current_state.clone();
-        // }
+        let state = self.debounced_scan();
+        if !state.eq(&self.last_state) {
+            self.leds[0].set_low();
+            self.leds[1].set_high();
+            let kr: KeyboardReport = self.create_report(&state);
+            self.hid_class.push_input(&kr);
+            self.last_state = state;
+        } else {
+            self.leds[1].set_low();
+            self.leds[0].set_high();
+        }
     }
 
+    fn debounced_scan(&mut self) -> State {
+        let s1 = self.scan();
+        delay_ms(20);
+        let s2 = self.scan();
+        State::intersect(s1, s2)
+    }
     fn scan(&mut self) -> State {
         match self.scan_type {
-            ScanType::ROW2COL => self.row2col(),
-            ScanType::COL2ROW => self.col2row(),
-        }
-    }
-
-
-    fn create_report(state: &State, layout: &Layout) -> Vec<KeyboardReport, NUM_CHUNKS> {
-        // Check functions before building keys
-        // Be sure to reset layer before running layer-editing functions!
-        let layer: u8 = state.pressed().iter().map(|p| layout.get_layer_mod(p)).sum();
-
-        let mods: u8 = state.pressed()
-            .iter()
-            .map(|p| layout.get_mod(layer, p))
-            .filter(Option::is_some)
-            .map(Option::unwrap)
-            .sum();
-
-        let key_codes: Vec<u8, BUTTONS> = state.pressed()
-            .iter()
-            .map(|p| layout.get_non_mod(layer, p))
-            .filter(Option::is_some)
-            .map(Option::unwrap)
-            .collect();
-
-
-        let chunks = Self::chunkate(key_codes);
-        let reports: Vec<KeyboardReport, NUM_CHUNKS> = chunks.iter()
-            .map(|chunk| KeyboardReport {
-                modifier: mods,
-                reserved: 0,
-                leds: 0,
-                keycodes: chunk.clone(),
-            }).collect();
-
-        reports
-    }
-
-    fn chunkate(v: Vec<u8, BUTTONS>) -> Vec<[u8; 6], NUM_CHUNKS> {
-        let mut chunks: Vec<[u8; 6], NUM_CHUNKS> = Vec::new();
-        let mut ar: [u8; 6] = [0; 6];
-        for (i, kc) in v.iter().enumerate() {
-            if i % 6 == 0 {
-                chunks.push(ar.clone());
-                ar = [0; 6];
+            ScanType::ROW2COL => {
+                return self.scan_row2col();
             }
-            ar[i] = *kc;
+            ScanType::COL2ROW => {
+                return self.scan_col2row();
+            }
         }
-        if ar.iter().map(|u| *u as usize).sum::<usize>() != 0 {
-            chunks.push(ar.clone());
-        }
-        chunks
     }
-    fn row2col(&mut self) -> State {
+
+    fn scan_row2col(&mut self) -> State {
         let mut state = State::empty();
         for (r, row) in self.rows.iter_mut().enumerate() {
             Self::low(row);
@@ -175,31 +141,79 @@ impl Keyboard {
         }
         state
     }
+    fn scan_col2row(&mut self) -> State {
+        State::empty()
+    }
 
-    fn is_low(col: &mut EitherPin) -> bool {
-        match col {
+    fn create_report(&mut self, state: &State) -> KeyboardReport {
+        if !state.pressed().is_empty() {
+            let layer = state.pressed()
+                .iter()
+                .map(|p| LAYOUT.get_layer_mod(p))
+                .sum();
+
+            let mods: u8 = state.pressed()
+                .iter()
+                .map(|p| LAYOUT.get_mod(layer, p))
+                .filter(Option::is_some)
+                .map(Option::unwrap)
+                .sum();
+
+            let keys: Vec<u8, BUTTONS> = state.pressed()
+                .iter()
+                .map(|p| LAYOUT.get_keycode(layer, p))
+                .filter(Option::is_some)
+                .map(Option::unwrap)
+                .collect();
+
+
+            let mut kc = [0; 6];
+            for (i, k) in keys.iter().enumerate() {
+                kc[i] = *k;
+            }
+            return KeyboardReport {
+                modifier: mods,
+                reserved: 0,
+                leds: 0,
+                keycodes: kc,
+            };
+        }
+        KeyboardReport {
+            modifier: 0,
+            reserved: 0,
+            leds: 0,
+            keycodes: [0; 6],
+        }
+    }
+
+    fn is_low(pin: &mut EitherPin) -> bool {
+        match pin {
             EitherPin::Input(p) => { p.is_low() }
             EitherPin::Output(_) => { panic!() }
             EitherPin::None => { panic!() }
         }
     }
+    fn is_high(pin: &mut EitherPin) -> bool {
+        match pin {
+            EitherPin::Input(p) => { p.is_high() }
+            EitherPin::Output(_) => { panic!() }
+            EitherPin::None => { panic!() }
+        }
+    }
 
-    fn high(row: &mut EitherPin) {
-        match row {
+    fn high(pin: &mut EitherPin) {
+        match pin {
             EitherPin::Input(_) => {}
             EitherPin::Output(p) => { p.set_high(); }
             EitherPin::None => {}
         }
     }
 
-    fn low(row: &mut EitherPin) {
-        match row {
+    fn low(pin: &mut EitherPin) {
+        match pin {
             EitherPin::Input(_) => {}
             EitherPin::Output(p) => { p.set_low(); }
             EitherPin::None => {}
         }
-    }
-    fn col2row(&self) -> State {
-        State::empty()
     }
 }

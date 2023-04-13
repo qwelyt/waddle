@@ -99,7 +99,7 @@ fn main() -> ! {
         pins.a2.into_output_high().downgrade(),
         pins.a3.into_output_high().downgrade(),
         pins.d2.into_output_high().downgrade(),
-        // pins.d3.into_output_high().downgrade(),
+        pins.d3.into_output_high().downgrade(),
     ];
     let cols = vec![
         pins.a1.into_pull_up_input().downgrade(),

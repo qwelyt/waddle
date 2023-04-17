@@ -4,7 +4,7 @@ use arduino_hal::port::mode::{Floating, Input, Output, PullUp};
 use arduino_hal::port::Pin;
 use atmega_usbd::UsbBus;
 use heapless::Vec;
-use usb_device::device::UsbDevice;
+use usb_device::device::{UsbDevice, UsbDeviceState};
 use usbd_hid::descriptor::KeyboardReport;
 use usbd_hid::hid_class::HIDClass;
 
@@ -98,16 +98,20 @@ impl Keyboard {
                 if report_buf[0] & 2 != 0 {} else {}
             }
         }
-        let state = self.debounced_scan();
-        if !state.eq(&self.last_state) {
-            self.leds[0].set_low();
-            self.leds[1].set_high();
-            let kr: KeyboardReport = self.create_report(&state);
-            self.hid_class.push_input(&kr);
-            self.last_state = state;
-        } else {
-            self.leds[1].set_low();
-            self.leds[0].set_high();
+        if self.usb_device.state() == UsbDeviceState::Configured {
+            let state = self.debounced_scan();
+            if !state.eq(&self.last_state) {
+                // self.leds[0].set_low();
+                // self.leds[1].set_high();
+                let state = LAYOUT.apply_functions(&state);
+                self.set_leds(&state);
+                let kr: KeyboardReport = self.create_report(&state);
+                self.hid_class.push_input(&kr);
+                self.last_state = state;
+            } else {
+                // self.leds[1].set_low();
+                // self.leds[0].set_high();
+            }
         }
     }
 
@@ -129,7 +133,7 @@ impl Keyboard {
     }
 
     fn scan_row2col(&mut self) -> State {
-        let mut state = State::empty();
+        let mut state = self.last_state.clean();
         for (r, row) in self.rows.iter_mut().enumerate() {
             Self::low(row);
             for (c, col) in self.cols.iter_mut().enumerate() {
@@ -145,7 +149,16 @@ impl Keyboard {
         State::empty()
     }
 
-    fn create_report(&mut self, state: &State) -> KeyboardReport {
+    fn set_leds(&mut self, state: &State) {
+        for (i, active) in state.led_state().iter().enumerate() {
+            match *active {
+                true => self.leds[i].set_low(),
+                false => self.leds[i].set_high(),
+            }
+        }
+    }
+
+    fn create_report(&self, state: &State) -> KeyboardReport {
         if !state.pressed().is_empty() {
             let layer = state.pressed()
                 .iter()

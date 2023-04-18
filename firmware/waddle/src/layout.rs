@@ -24,7 +24,7 @@ pub const COLS: usize = 12;
 pub const BUTTONS: usize = ROWS * COLS;
 pub const NUM_CHUNKS: usize = BUTTONS / 6;
 pub const LAYERS: usize = 4;
-pub const LEDS: usize = 2;
+pub const LEDS: usize = 3;
 progmem! {
     pub static progmem MATRIX: [[[Key; COLS]; ROWS]; LAYERS] = [
         [
@@ -46,7 +46,7 @@ progmem! {
             [KeyCode(k::L_CTRL), KeyCode(k::L_SUPR), Dead, KeyCode(k::L_ALT), LayerMo(1), KeyCode(k::SPACE), KeyCode(k::RETURN), Dead, KeyCode(k::R_ALT), KeyCode(k::MENU), KeyCode(k::R_SUPR), KeyCode(k::R_CTRL), ],
         ],
         [
-            [Function(|state| state.toggle_led(1)),               Function(|s|s.toggle_led(2)),               Function(|s| s.toggle_led(3)), Dead,              Dead, Dead,              Dead,               Dead, Dead,              Dead,             Dead,               Dead,               ],
+            [Function(|state| state.toggle_led(0)),               Function(|s|s.toggle_led(1)),               Function(|s| s.toggle_led(2)), Dead,              Dead, Dead,              Dead,               Dead, Dead,              Dead,             Dead,               Dead,               ],
             [KeyCode(k::ESC),    Dead,               Dead, Dead,              Dead, Dead,              Dead,               Dead, Dead,              Dead,             Dead,               Dead,               ],
             [KeyCode(k::L_SHFT), Dead,               Dead, Dead,              Dead, Dead,              Dead,               Dead, Dead,              Dead,             Dead,               KeyCode(k::R_SHFT), ],
             [KeyCode(k::L_CTRL), KeyCode(k::L_SUPR), Dead, KeyCode(k::L_ALT), Dead, KeyCode(k::SPACE), KeyCode(k::RETURN), Dead, KeyCode(k::R_ALT), KeyCode(k::MENU), KeyCode(k::R_SUPR), KeyCode(k::R_CTRL), ],
@@ -69,11 +69,8 @@ impl Layout {
         match self.matrix.at(0)
             .at(position.row() as usize)
             .load_at(position.col() as usize) {
-            KeyCode(_) => { 0 }
-            Function(_) => { 0 }
-            LayerMo(l) => { l }
-            LayerCh(_) => { 0 }
-            Dead => { 0 }
+            LayerMo(l) => l,
+            _ => 0
         }
     }
 
@@ -81,11 +78,8 @@ impl Layout {
         match self.matrix.at(layer as usize)
             .at(position.row() as usize)
             .load_at(position.col() as usize) {
-            KeyCode(kc) => { Some(kc) }
-            Function(_) => { None }
-            LayerMo(_) => { None }
-            LayerCh(_) => { None }
-            Dead => { None }
+            KeyCode(kc) => Some(kc),
+            _ => None,
         }
     }
 

@@ -33,7 +33,7 @@ pub struct Keyboard {
     scan_type: ScanType,
     rows: Vec<EitherPin, ROWS>,
     cols: Vec<EitherPin, COLS>,
-    leds: Vec<Pin<Output>, LEDS>,
+    leds: Vec<EitherPin, LEDS>,
     last_state: State,
 }
 
@@ -47,6 +47,7 @@ impl Keyboard {
     ) -> Self {
         let mut row_pins: Vec<EitherPin, ROWS> = Vec::new();
         let mut col_pins: Vec<EitherPin, COLS> = Vec::new();
+        let mut led_pins: Vec<EitherPin, LEDS> = Vec::new();
 
         for (i, pin) in cols.into_iter().enumerate() {
             col_pins.insert(i, EitherPin::Input(pin));
@@ -54,13 +55,16 @@ impl Keyboard {
         for (i, pin) in rows.into_iter().enumerate() {
             row_pins.insert(i, EitherPin::Output(pin));
         }
+        for (i, pin) in leds.into_iter().enumerate() {
+            led_pins.insert(i, EitherPin::Output(pin));
+        }
         Self {
             usb_device,
             hid_class,
             scan_type: ScanType::ROW2COL,
             rows: row_pins,
             cols: col_pins,
-            leds,
+            leds: led_pins,
             last_state: State::empty(),
         }
     }
@@ -73,6 +77,7 @@ impl Keyboard {
     ) -> Self {
         let mut row_pins: Vec<EitherPin, ROWS> = Vec::new();
         let mut col_pins: Vec<EitherPin, COLS> = Vec::new();
+        let mut led_pins: Vec<EitherPin, LEDS> = Vec::new();
 
         for (i, pin) in cols.into_iter().enumerate() {
             col_pins.insert(i, EitherPin::Output(pin));
@@ -80,13 +85,16 @@ impl Keyboard {
         for (i, pin) in rows.into_iter().enumerate() {
             row_pins.insert(i, EitherPin::Input(pin));
         }
+        for (i, pin) in leds.into_iter().enumerate() {
+            led_pins.insert(i, EitherPin::Output(pin));
+        }
         Self {
             usb_device,
             hid_class,
             scan_type: ScanType::COL2ROW,
             rows: row_pins,
             cols: col_pins,
-            leds,
+            leds: led_pins,
             last_state: State::empty(),
         }
     }
@@ -152,8 +160,8 @@ impl Keyboard {
     fn set_leds(&mut self, state: &State) {
         for (i, active) in state.led_state().iter().enumerate() {
             match *active {
-                true => self.leds[i].set_low(),
-                false => self.leds[i].set_high(),
+                true => Self::low(self.leds.get_mut(i).unwrap()),
+                false => Self::high(self.leds.get_mut(i).unwrap()),
             }
         }
     }

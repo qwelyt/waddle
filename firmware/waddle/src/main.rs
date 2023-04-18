@@ -128,9 +128,9 @@ fn main() -> ! {
     //     pins.d3.into_pull_up_input().downgrade(),
     // ];
     let leds = vec![
-        pins.led_tx.into_output_high().downgrade(),
         pins.led_rx.into_output_high().downgrade(),
-        // pins.tx.into_output_high().downgrade(),
+        pins.led_tx.into_output_high().downgrade(),
+        pins.tx.into_output_high().downgrade(),
     ];
 
     unsafe {

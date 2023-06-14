@@ -3,6 +3,7 @@ use arduino_hal::hal::port::{Dynamic, PD1, PF4};
 use arduino_hal::port::mode::{Floating, Input, Output, PullUp};
 use arduino_hal::port::Pin;
 use atmega_usbd::UsbBus;
+use avr_device::atmega32u4::Interrupt::TIMER0_COMPA;
 use heapless::Vec;
 use usb_device::device::{UsbDevice, UsbDeviceState};
 use usbd_hid::descriptor::KeyboardReport;
@@ -182,15 +183,64 @@ impl Keyboard {
                 .map(|p| LAYOUT.get_layer_mod(p))
                 .sum();
 
-            let mods: u8 = state.pressed()
+            let keys: Vec<Key, BUTTONS> = state.pressed()
                 .iter()
+                .map(|p| LAYOUT.get_key(layer, p))
+                .collect();
+
+            // 1: Find combos
+            // 2: Filter out other keys taken by a combo (so we don't activate that ones primary)
+            // 3: Evaluate combos
+            // 4: Find mods
+            // 5: Find keycodes
+
+            // On holds?
+            // How to deal with those?
+            // Need a timer to see for how long something has been pressed, and if we have a key
+            // that has an on hold we can't send a state with that key until release or timer "runs out".
+            // So we need to change `state.pressed` here to be "activated`, and we activate keys on
+            // release or timer run-out.
+            // Another layer of indirection.
+            // But if a key is pressed, and we don't have an on-hold, we still need to send that press.
+            // Can't wait for release as that would mess up gaming (pressing W for forward etc.)
+            // So first check pressed. Then check which has on-hold. Those that do not can be `active` directly
+            // and operate like "normal". Those that have on-hold need to wait for release or timer.
+            //
+            // Timers should be stored in state. An Instant for when the key was first pressed. Then on
+            // each check look if time > on_hold_time or if the key has been released. Of it is still
+            // on hold then we get the key, else we get nothing and continue waiting. Option<Key> perhaps.
+            // And the `Key` can be anything, layer, mod, function, anything. So we need to evaluate all holds
+            // first to get the proper Key.
+            // After on_hold we should either check combos or layers. I think layers first, then combos. That
+            // way you can have the same keys for combos on different layers, meaning more keys. - Perhaps
+            // that should be true for on_hold as well? hmm
+            // Anyway, layer or on_hold first, then combos. Then we get all the other keys and check
+            // which are Active. We get all the active_keys, and map those into either mods or printables.
+            // And then we send the state.
+            // Put all this in its own file so it is easier to reason about.
+
+
+            // TODO: Change num allowed combos
+            let combos: Vec<(Position, Key), 8> = state.pressed()
+                .iter()
+                .map(|p| LAYOUT.get_combo(layer, p))
+                .filter(Option::is_some)
+                .map(Option::unwrap)
+                .collect();
+            let combo_pos: Vec<Position, 8> = combos.iter().map(|c| c.0).collect();
+
+            let pressed: Vec<Position, BUTTONS> = state.pressed()
+                .iter()
+                .filter(|p| combo_pos.contains(*p))
+                .collect();
+
+            let mods: u8 = pressed.iter()
                 .map(|p| LAYOUT.get_mod(layer, p))
                 .filter(Option::is_some)
                 .map(Option::unwrap)
                 .sum();
 
-            let keys: Vec<u8, BUTTONS> = state.pressed()
-                .iter()
+            let keys: Vec<u8, BUTTONS> = pressed.iter()
                 .map(|p| LAYOUT.get_keycode(layer, p))
                 .filter(Option::is_some)
                 .map(Option::unwrap)

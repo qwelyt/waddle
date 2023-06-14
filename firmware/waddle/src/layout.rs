@@ -2,7 +2,15 @@ use avr_progmem::progmem;
 use avr_progmem::wrapper::ProgMem;
 
 use k::norde::se;
-use Key::{Dead, Function, KeyCode, LayerCh, LayerMo, PassThrough};
+use Key::{
+    Combo,
+    Dead,
+    Function,
+    KeyCode,
+    LayerCh,
+    LayerMo,
+    PassThrough,
+};
 
 use crate::keycode::k;
 use crate::keycode::k::layer;
@@ -16,8 +24,12 @@ pub enum Key {
     LayerMo(u8),
     LayerCh(u8),
     PassThrough(u8),
+    Combo(Key, (Position, Key)),
+    OnHold(Key, (u8, Key)),
     Dead,
 }
+
+impl Key {}
 
 pub const ROWS: usize = 4;
 pub const COLS: usize = 12;
@@ -49,7 +61,7 @@ progmem! {
         [
             [Function(|state| state.toggle_led(0)), Function(|s|s.toggle_led(1)), Function(|s| s.toggle_led(2)), PassThrough(1), PassThrough(1), PassThrough(1), PassThrough(1), PassThrough(1), PassThrough(1), PassThrough(1),PassThrough(1), PassThrough(1),],
             [KeyCode(k::ESC),    PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), PassThrough(1),    PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),        PassThrough(1),        ],
-            [KeyCode(k::L_SHFT), PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), PassThrough(1),    PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),        KeyCode(k::R_SHFT),    ],
+            [KeyCode(k::L_SHFT), Combo(KeyCode(k::A), (Position::new(2,3), KeyCode(k::K))),     PassThrough(1),        PassThrough(1),    PassThrough(1), PassThrough(1),    PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),        KeyCode(k::R_SHFT),    ],
             [KeyCode(k::L_CTRL), KeyCode(k::L_SUPR), PassThrough(1),        KeyCode(k::L_ALT), PassThrough(1), KeyCode(k::SPACE), KeyCode(k::RETURN),  PassThrough(1),      KeyCode(k::R_ALT),   KeyCode(k::MENU),    KeyCode(k::R_SUPR),    KeyCode(k::R_CTRL),    ],
         ],
     ];
@@ -92,6 +104,20 @@ impl Layout {
 
     pub fn get_non_mod(&self, layer: u8, position: &Position) -> Option<u8> {
         self.get_keycode(layer, position).filter(|u| !k::is_mod(u))
+    }
+
+    pub fn get_combo(&self, layer: u8, position: &Position) -> Option<(Position, Key)> {
+        match self.matrix.at(layer as usize)
+            .at(position.row() as usize)
+            .load_at(position.col() as usize) {
+            Combo(kc, (pos, key)) => Some((pos, key))
+        }
+    }
+
+    pub fn get_key(&self, layer: u8, position: &Position) -> Key {
+        self.matrix.at(layer as usize)
+            .at(position.row() as usize)
+            .load_at(position.col() as usize)
     }
 
 

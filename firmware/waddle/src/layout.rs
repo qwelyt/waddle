@@ -29,28 +29,28 @@ pub const LEDS: usize = 3;
 progmem! {
     pub static progmem MATRIX: [[[Key; COLS]; ROWS]; LAYERS] = [
         [
-            [KeyCode(k::TAB),    KeyCode(k::Q),      KeyCode(k::W),         KeyCode(k::E),     KeyCode(k::R),  KeyCode(k::T),     KeyCode(k::Y),       KeyCode(k::U),       KeyCode(k::I),       KeyCode(k::O),       KeyCode(k::P),         KeyCode(se::Å),        ],
-            [KeyCode(k::ESC),    KeyCode(k::A),      KeyCode(k::S),         KeyCode(k::D),     KeyCode(k::F),  KeyCode(k::G),     KeyCode(k::H),       KeyCode(k::J),       KeyCode(k::K),       KeyCode(k::L),       KeyCode(se::Ö),        KeyCode(se::Ä),        ],
-            [KeyCode(k::L_SHFT), KeyCode(k::Z),      KeyCode(k::X),         KeyCode(k::C),     KeyCode(k::V),  KeyCode(k::B),     KeyCode(k::N),       KeyCode(k::M),       KeyCode(k::COMMA),   KeyCode(k::DOT),     KeyCode(se::DASH),     KeyCode(k::R_SHFT),    ],
-            [KeyCode(k::L_CTRL), KeyCode(k::L_SUPR), KeyCode(k::BS_N_PIPE), KeyCode(k::L_ALT), LayerMo(1),     KeyCode(k::SPACE), KeyCode(k::RETURN),  LayerMo(2),          KeyCode(k::R_ALT),   KeyCode(k::MENU),    KeyCode(k::R_SUPR),    KeyCode(k::R_CTRL),    ],
+            [KeyCode(k::TAB),    KeyCode(k::Q),      KeyCode(k::W),         KeyCode(k::E),     KeyCode(k::R),  KeyCode(k::T),      KeyCode(k::Y),       KeyCode(k::U),       KeyCode(k::I),       KeyCode(k::O),       KeyCode(k::P),         KeyCode(se::Å),        ],
+            [KeyCode(k::ESC),    KeyCode(k::A),      KeyCode(k::S),         KeyCode(k::D),     KeyCode(k::F),  KeyCode(k::G),      KeyCode(k::H),       KeyCode(k::J),       KeyCode(k::K),       KeyCode(k::L),       KeyCode(se::Ö),        KeyCode(se::Ä),        ],
+            [KeyCode(k::L_SHFT), KeyCode(k::Z),      KeyCode(k::X),         KeyCode(k::C),     KeyCode(k::V),  KeyCode(k::B),      KeyCode(k::N),       KeyCode(k::M),       KeyCode(k::COMMA),   KeyCode(k::DOT),     KeyCode(se::DASH),     KeyCode(k::R_SHFT),    ],
+            [KeyCode(k::L_CTRL), KeyCode(k::L_SUPR), KeyCode(k::BS_N_PIPE), KeyCode(k::L_ALT), LayerMo(1),     KeyCode(k::SPACE),  KeyCode(k::RETURN),  LayerMo(2),          KeyCode(k::R_ALT),   KeyCode(k::MENU),    KeyCode(k::R_SUPR),    KeyCode(k::R_CTRL),    ],
         ],
         [
-            [KeyCode(k::K1),     KeyCode(k::K2),     KeyCode(k::K3),        KeyCode(k::K4),    KeyCode(k::K5), KeyCode(k::K6),    KeyCode(k::K7),      KeyCode(k::K8),      KeyCode(k::K9),      KeyCode(k::K0),      KeyCode(k::OBRAKET),   KeyCode(k::CBRAKET),   ],
-            [KeyCode(k::ESC),    PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), PassThrough(1),    KeyCode(k::ARROW_L), KeyCode(k::ARROW_D), KeyCode(k::ARROW_U), KeyCode(k::ARROW_R), KeyCode(k::TILDE),     KeyCode(k::EQUAL),     ],
-            [KeyCode(k::L_SHFT), PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), PassThrough(1),    PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),        KeyCode(k::BACKSPACE), ],
-            [KeyCode(k::L_CTRL), KeyCode(k::L_SUPR), KeyCode(k::GACC),      KeyCode(k::L_ALT), PassThrough(1), KeyCode(k::SPACE), KeyCode(k::RETURN),  LayerMo(2),          KeyCode(k::R_ALT),   KeyCode(k::MENU),    KeyCode(k::R_SUPR),    KeyCode(k::R_CTRL),    ],
+            [KeyCode(k::K1),     KeyCode(k::K2),     KeyCode(k::K3),        KeyCode(k::K4),    KeyCode(k::K5), KeyCode(k::K6),     KeyCode(k::K7),      KeyCode(k::K8),      KeyCode(k::K9),      KeyCode(k::K0),      KeyCode(k::OBRAKET),   KeyCode(k::CBRAKET),   ],
+            [KeyCode(k::ESC),    PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), PassThrough(1),     KeyCode(k::ARROW_L), KeyCode(k::ARROW_D), KeyCode(k::ARROW_U), KeyCode(k::ARROW_R), KeyCode(k::TILDE),     KeyCode(k::EQUAL),     ],
+            [KeyCode(k::L_SHFT), PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), PassThrough(1),     PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),        KeyCode(k::BACKSPACE), ],
+            [KeyCode(k::L_CTRL), KeyCode(k::L_SUPR), KeyCode(k::GACC),      KeyCode(k::L_ALT), PassThrough(1), KeyCode(k::SPACE),  KeyCode(k::RETURN),  LayerMo(2),          KeyCode(k::R_ALT),   KeyCode(k::MENU),    KeyCode(k::R_SUPR),    KeyCode(k::R_CTRL),    ],
         ],
         [
-            [KeyCode(k::F1),     KeyCode(k::F2),     KeyCode(k::F3),        KeyCode(k::F4),    KeyCode(k::F5), KeyCode(k::F6),    KeyCode(k::F7),      KeyCode(k::F8),      KeyCode(k::F9),      KeyCode(k::F10),     KeyCode(k::F11),       KeyCode(k::F12),       ],
-            [KeyCode(k::ESC),    PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), PassThrough(1),    KeyCode(k::HOME),    KeyCode(k::PGDWN),   KeyCode(k::PGUP),    KeyCode(k::END),     KeyCode(k::PRNT_SCRN), KeyCode(k::DASH),      ],
-            [KeyCode(k::L_SHFT), PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), PassThrough(1),    PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),        KeyCode(k::DELETE),    ],
-            [KeyCode(k::L_CTRL), KeyCode(k::L_SUPR), PassThrough(1),        KeyCode(k::L_ALT), LayerMo(1),     KeyCode(k::SPACE), KeyCode(k::RETURN),  PassThrough(1),      KeyCode(k::R_ALT),   KeyCode(k::MENU),    KeyCode(k::R_SUPR),    KeyCode(k::R_CTRL),    ],
+            [KeyCode(k::F1),     KeyCode(k::F2),     KeyCode(k::F3),        KeyCode(k::F4),    KeyCode(k::F5), KeyCode(k::F6),     KeyCode(k::F7),      KeyCode(k::F8),      KeyCode(k::F9),      KeyCode(k::F10),     KeyCode(k::F11),       KeyCode(k::F12),       ],
+            [KeyCode(k::ESC),    PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), KeyCode(k::INSERT), KeyCode(k::HOME),    KeyCode(k::PGDWN),   KeyCode(k::PGUP),    KeyCode(k::END),     KeyCode(k::PRNT_SCRN), KeyCode(k::DASH),      ],
+            [KeyCode(k::L_SHFT), PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), PassThrough(1),     PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),        KeyCode(k::DELETE),    ],
+            [KeyCode(k::L_CTRL), KeyCode(k::L_SUPR), PassThrough(1),        KeyCode(k::L_ALT), LayerMo(1),     KeyCode(k::SPACE),  KeyCode(k::RETURN),  PassThrough(1),      KeyCode(k::R_ALT),   KeyCode(k::MENU),    KeyCode(k::R_SUPR),    KeyCode(k::R_CTRL),    ],
         ],
         [
             [Function(|state| state.toggle_led(0)), Function(|s|s.toggle_led(1)), Function(|s| s.toggle_led(2)), PassThrough(1), PassThrough(1), PassThrough(1), PassThrough(1), PassThrough(1), PassThrough(1), PassThrough(1),PassThrough(1), PassThrough(1),],
-            [KeyCode(k::ESC),    PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), PassThrough(1),    PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),        PassThrough(1),        ],
-            [KeyCode(k::L_SHFT), PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), PassThrough(1),    PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),        KeyCode(k::R_SHFT),    ],
-            [KeyCode(k::L_CTRL), KeyCode(k::L_SUPR), PassThrough(1),        KeyCode(k::L_ALT), PassThrough(1), KeyCode(k::SPACE), KeyCode(k::RETURN),  PassThrough(1),      KeyCode(k::R_ALT),   KeyCode(k::MENU),    KeyCode(k::R_SUPR),    KeyCode(k::R_CTRL),    ],
+            [KeyCode(k::ESC),    PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), PassThrough(1),    PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),       PassThrough(1),        PassThrough(1),        ],
+            [KeyCode(k::L_SHFT), PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), PassThrough(1),    PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),       PassThrough(1),        KeyCode(k::R_SHFT),    ],
+            [KeyCode(k::L_CTRL), KeyCode(k::L_SUPR), PassThrough(1),        KeyCode(k::L_ALT), PassThrough(1), KeyCode(k::SPACE), KeyCode(k::RETURN),  PassThrough(1),      KeyCode(k::R_ALT),   KeyCode(k::MENU),     KeyCode(k::R_SUPR),    KeyCode(k::R_CTRL),    ],
         ],
     ];
 }

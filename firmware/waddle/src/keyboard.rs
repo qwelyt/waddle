@@ -10,10 +10,13 @@ use usbd_hid::hid_class::HIDClass;
 
 use crate::layout::{BUTTONS, COLS, Key, LAYERS, Layout, LAYOUT, LEDS, NUM_CHUNKS, ROWS};
 use crate::position::position::Position;
+use crate::scan::Scan;
 use crate::state::State;
 
 pub type RowPinType = Pin<Output>;
 pub type ColPinType = Pin<Input<PullUp>>;
+
+pub const DELAY_MS: u16 = 10;
 
 pub enum ScanType {
     ROW2COL,
@@ -34,7 +37,7 @@ pub struct Keyboard {
     rows: Vec<EitherPin, ROWS>,
     cols: Vec<EitherPin, COLS>,
     leds: Vec<EitherPin, LEDS>,
-    last_state: State,
+    state: State,
 }
 
 impl Keyboard {
@@ -65,7 +68,7 @@ impl Keyboard {
             rows: row_pins,
             cols: col_pins,
             leds: led_pins,
-            last_state: State::empty(),
+            state: State::new(),
         }
     }
     pub fn col2row(
@@ -95,7 +98,7 @@ impl Keyboard {
             rows: row_pins,
             cols: col_pins,
             leds: led_pins,
-            last_state: State::empty(),
+            state: State::new(),
         }
     }
     pub fn poll(&mut self) {
@@ -116,29 +119,27 @@ impl Keyboard {
             }
         }
         if self.usb_device.state() == UsbDeviceState::Configured {
-            let state = self.debounced_scan();
-            if !state.eq(&self.last_state) {
-                // self.leds[0].set_low();
-                // self.leds[1].set_high();
-                let state = LAYOUT.apply_functions(&state);
-                self.set_leds(&state);
-                let kr: KeyboardReport = self.create_report(&state);
-                self.hid_class.push_input(&kr);
-                self.last_state = state;
-            } else {
-                // self.leds[1].set_low();
-                // self.leds[0].set_high();
-            }
+            let scan = self.scan();
+            self.state.tick(&scan);
+            let events = self.state.events();
+
+            // if !state.eq(&self.last_state) {
+            //     // self.leds[0].set_low();
+            //     // self.leds[1].set_high();
+            //     let state = LAYOUT.apply_functions(&state);
+            //     self.set_leds(&state);
+            //     let kr: KeyboardReport = self.create_report(&state);
+            //     self.hid_class.push_input(&kr);
+            //     self.last_state = state;
+            // } else {
+            //     // self.leds[1].set_low();
+            //     // self.leds[0].set_high();
+            // }
+            delay_ms(DELAY_MS);
         }
     }
 
-    fn debounced_scan(&mut self) -> State {
-        let s1 = self.scan();
-        delay_ms(20);
-        let s2 = self.scan();
-        State::intersect(s1, s2)
-    }
-    fn scan(&mut self) -> State {
+    fn scan(&mut self) -> Scan {
         match self.scan_type {
             ScanType::ROW2COL => {
                 return self.scan_row2col();
@@ -149,21 +150,21 @@ impl Keyboard {
         }
     }
 
-    fn scan_row2col(&mut self) -> State {
-        let mut state = self.last_state.clean();
+    fn scan_row2col(&mut self) -> Scan {
+        let mut scan_state = Scan::new();
         for (r, row) in self.rows.iter_mut().enumerate() {
             Self::low(row);
             for (c, col) in self.cols.iter_mut().enumerate() {
                 if Self::is_low(col) {
-                    state.set_pressed(r, c);
+                    scan_state.set_pressed(r, c);
                 }
             }
             Self::high(row);
         }
-        state
+        scan_state
     }
-    fn scan_col2row(&mut self) -> State {
-        State::empty()
+    fn scan_col2row(&mut self) -> Scan {
+        Scan::new()
     }
 
     fn set_leds(&mut self, state: &State) {

@@ -1,61 +1,74 @@
+use core::intrinsics::offset;
+
 use heapless::Vec;
 
-use crate::layout::{BUTTONS, COLS, LEDS, ROWS};
+use crate::keyboard::DELAY_MS;
+use crate::layout::{BUTTONS, Key, LAYERS, LAYOUT, LEDS};
 use crate::position::position::Position;
+use crate::scan::Scan;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct State {
-    pressed: [u16; ROWS],
+    pressed: [u8; BUTTONS],
+    released: [u8; BUTTONS],
     leds: u8,
 }
 
 impl State {
-    pub fn empty() -> Self {
+    pub fn new() -> Self {
         Self {
-            pressed: [0; ROWS],
+            pressed: [0; BUTTONS],
+            released: [0; BUTTONS],
             leds: 0,
         }
     }
 
-    pub fn new(pressed: [u16; ROWS], leds: u8) -> Self {
-        Self { pressed, leds }
-    }
+    pub fn tick(&mut self, scan: &Scan) {
+        for i in 0..BUTTONS {
+            self.released[i] = 0; // Reset released
 
-    pub fn clean(&self) -> Self {
-        Self {
-            pressed: [0; ROWS],
-            leds: self.leds,
+            if scan.is_pressed(i) {
+                self.pressed[i] = self.pressed[i] + 1;
+            } else {
+                // It's either 0 as it was never pressed which means there is no change
+                // Or it was pressed and we should check for how long it was pressed to check for
+                // on-holds.
+                self.released[i] = self.pressed[i];
+            }
         }
     }
 
-    pub fn intersect(a: State, b: State) -> State {
-        let mut intersect = [0; ROWS];
-        for r in 0..ROWS {
-            intersect[r] = a.pressed[r] & b.pressed[r];
+
+    pub fn events(&self) {
+        let mut buttons: Vec<[Key; LAYERS], BUTTONS> = Vec::new();
+        for i in 0..BUTTONS {
+            let ticks = self.released[i];
+            if ticks > 2 {
+                // Check for on-holds. If ticks are below the on-hold limit then
+                // send the non-hold key as an event.
+                // If the ticks are *over* then we have already activated that key
+                // and should do nothing
+            }
+
+            let ticks = self.pressed[i];
+            if ticks > 2 {
+                buttons.push(LAYOUT.get(i));
+            }
         }
-        State::new(intersect, a.leds)
+        // 1. Find which layer we are on
+        // 2. Get all keys on that layer
+        // 3. Add KeyCodes and Functions as events
+        // 4. Check if on-holds. If they are above limit, get the key.
+        //      If they are below, ignore.
+    }
+    fn ms_to_ticks(ms: u8) -> u8 {
+        ms / DELAY_MS
     }
 
-    pub fn set_pressed(&mut self, row: usize, col: usize) {
-        self.pressed[row] = self.pressed[row] | (1 << col)
-    }
 
     pub fn toggle_led(&mut self, led: u8) {
         self.leds = self.leds ^ (1 << led)
     }
 
-    pub fn pressed(&self) -> Vec<Position, BUTTONS> {
-        let mut v = Vec::new();
-        for r in 0..ROWS {
-            for c in 0..COLS {
-                let p = self.pressed[r] & (1 << c);
-                if p > 0 {
-                    v.push(Position::new(u8::try_from(r).unwrap(), u8::try_from(c).unwrap()));
-                }
-            }
-        }
-        v
-    }
 
     pub fn led_state(&self) -> [bool; LEDS] {
         let mut leds = [false; LEDS];

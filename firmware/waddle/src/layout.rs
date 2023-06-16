@@ -67,6 +67,21 @@ impl Layout {
     pub fn new() -> Self {
         Self { matrix: MATRIX }
     }
+
+    pub fn get(&self, button: usize) -> [Key; LAYERS] {
+        let row = button / ROWS;
+        let col = button % COLS;
+        let mut b = [Key; LAYERS];
+        for layer in 0..LAYERS {
+            b[layer] = self.get_key(layer, row, col);
+        }
+        b
+    }
+
+    pub fn get_key(&self, layer: usize, row: usize, col: usize) -> Key {
+        self.matrix.at(layer).at(row).at(col).load()
+    }
+
     pub fn get_layer_mod(&self, position: &Position) -> u8 {
         match self.matrix.at(0)
             .at(position.row() as usize)

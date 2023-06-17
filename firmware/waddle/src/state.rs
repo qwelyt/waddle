@@ -2,12 +2,15 @@ use core::intrinsics::offset;
 
 use heapless::Vec;
 
+use crate::event::Event;
 use crate::keyboard::DELAY_MS;
 use crate::layout::{BUTTONS, Key, LAYERS, LAYOUT, LEDS};
 use crate::position::position::Position;
 use crate::scan::Scan;
 
-pub struct State {
+pub const STATE: State = State::new();
+
+struct State {
     pressed: [u8; BUTTONS],
     released: [u8; BUTTONS],
     leds: u8,
@@ -38,7 +41,7 @@ impl State {
     }
 
 
-    pub fn events(&self) {
+    pub fn events(&mut self) -> Vec<Event, BUTTONS> {
         let mut buttons: Vec<[Key; LAYERS], BUTTONS> = Vec::new();
         for i in 0..BUTTONS {
             let ticks = self.released[i];
@@ -55,13 +58,49 @@ impl State {
             }
         }
         // 1. Find which layer we are on
-        // 2. Get all keys on that layer
+        let layer: u8 = buttons.iter()
+            .map(|ks| ks.iter()
+                .map(|k| match k {
+                    Key::LayerMo(l) => l,
+                    _ => 0,
+                })
+                .sum()
+            ).sum();
+        // 2. Get all keys on that layer, or lower if current is PassThrough
+        let keys: Vec<Key, BUTTONS> = buttons.iter()
+            .map(|ks| self.get_key(ks, layer))
+            .filter(Option::is_some)
+            .map(Option::unwrap)
+            .collect();
+
         // 3. Add KeyCodes and Functions as events
         // 4. Check if on-holds. If they are above limit, get the key.
         //      If they are below, ignore.
+        let events: Vec<Event, BUTTONS> = keys.iter()
+            .map(|k| match k {
+                Key::KeyCode(kc) => Some(Event::KeyCode(*kc)),
+                // Key::Function(f) => Some(Event::Function(*f)), // Why not just ... apply directly?
+                Key::Function(f) => {
+                    f(self);
+                    None
+                }
+                _ => None
+            })
+            .filter(Option::is_some)
+            .map(Option::unwrap)
+            .collect();
+
+        events
     }
     fn ms_to_ticks(ms: u8) -> u8 {
         ms / DELAY_MS
+    }
+    fn get_key(&self, keys: &[Key; 4], layer: u8) -> Option<Key> {
+        match keys[layer] {
+            Key::Dead => None,
+            Key::PassThrough(l) => self.get_key(keys, layer - l),
+            _ => Some(ks[layer])
+        }
     }
 
 

@@ -49,6 +49,7 @@ mod keyboard;
 mod position;
 mod macros;
 mod scan;
+mod event;
 
 /// Wrapper around a usb-cdc SerialPort
 /// to be able to use the `write!()` macro with it

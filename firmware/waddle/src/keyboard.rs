@@ -8,10 +8,12 @@ use usb_device::device::{UsbDevice, UsbDeviceState};
 use usbd_hid::descriptor::KeyboardReport;
 use usbd_hid::hid_class::HIDClass;
 
+use crate::event::Event;
+use crate::keycode::k;
 use crate::layout::{BUTTONS, COLS, Key, LAYERS, Layout, LAYOUT, LEDS, NUM_CHUNKS, ROWS};
 use crate::position::position::Position;
 use crate::scan::Scan;
-use crate::state::State;
+use crate::state::STATE;
 
 pub type RowPinType = Pin<Output>;
 pub type ColPinType = Pin<Input<PullUp>>;
@@ -37,7 +39,7 @@ pub struct Keyboard {
     rows: Vec<EitherPin, ROWS>,
     cols: Vec<EitherPin, COLS>,
     leds: Vec<EitherPin, LEDS>,
-    state: State,
+    last_events: Vec<Event, BUTTONS>,
 }
 
 impl Keyboard {
@@ -68,7 +70,7 @@ impl Keyboard {
             rows: row_pins,
             cols: col_pins,
             leds: led_pins,
-            state: State::new(),
+            last_events: Vec::new(),
         }
     }
     pub fn col2row(
@@ -98,7 +100,7 @@ impl Keyboard {
             rows: row_pins,
             cols: col_pins,
             leds: led_pins,
-            state: State::new(),
+            last_events: Vec::new(),
         }
     }
     pub fn poll(&mut self) {
@@ -120,8 +122,15 @@ impl Keyboard {
         }
         if self.usb_device.state() == UsbDeviceState::Configured {
             let scan = self.scan();
-            self.state.tick(&scan);
+            STATE.tick(&scan);
             let events = self.state.events();
+
+            if !events.eq(&self.last_events) {
+                self.set_leds(&STATE);
+                let kr: KeyboardReport = self.create_report(events);
+                self.hid_class.push_input(&kr);
+                self.last_events = events;
+            }
 
             // if !state.eq(&self.last_state) {
             //     // self.leds[0].set_low();
@@ -176,27 +185,25 @@ impl Keyboard {
         }
     }
 
-    fn create_report(&self, state: &State) -> KeyboardReport {
-        if !state.pressed().is_empty() {
-            let layer = state.pressed()
-                .iter()
-                .map(|p| LAYOUT.get_layer_mod(p))
-                .sum();
-
-            let mods: u8 = state.pressed()
-                .iter()
-                .map(|p| LAYOUT.get_mod(layer, p))
-                .filter(Option::is_some)
-                .map(Option::unwrap)
-                .sum();
-
-            let keys: Vec<u8, BUTTONS> = state.pressed()
-                .iter()
-                .map(|p| LAYOUT.get_keycode(layer, p))
+    fn create_report(&self, events: Vec<Event, BUTTONS>) -> KeyboardReport {
+        if !events.is_empty() {
+            let keycodes: Vec<u8, BUTTONS> = events.iter()
+                .map(|e| match e {
+                    Event::KeyCode(kc) => Some(*kc),
+                    _ => None,
+                })
                 .filter(Option::is_some)
                 .map(Option::unwrap)
                 .collect();
 
+            let mods: u8 = keycodes.iter()
+                .filter(k::is_mod)
+                .map(k::to_mod_bitfield)
+                .sum();
+
+            let keys: Vec<u8, BUTTONS> = keycodes.iter()
+                .filter(!k::is_mod)
+                .collect();
 
             let mut kc = [0; 6];
             for (i, k) in keys.iter().enumerate() {

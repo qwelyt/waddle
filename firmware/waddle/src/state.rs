@@ -1,5 +1,3 @@
-use core::intrinsics::offset;
-
 use heapless::Vec;
 
 use crate::event::Event;
@@ -8,9 +6,7 @@ use crate::layout::{BUTTONS, Key, LAYERS, LAYOUT, LEDS};
 use crate::position::position::Position;
 use crate::scan::Scan;
 
-pub const STATE: State = State::new();
-
-struct State {
+pub struct State {
     pressed: [u8; BUTTONS],
     released: [u8; BUTTONS],
     leds: u8,
@@ -61,11 +57,11 @@ impl State {
         let layer: u8 = buttons.iter()
             .map(|ks| ks.iter()
                 .map(|k| match k {
-                    Key::LayerMo(l) => l,
+                    Key::LayerMo(layer) => *layer,
                     _ => 0,
                 })
-                .sum()
-            ).sum();
+                .sum::<u8>()
+            ).sum::<u8>();
         // 2. Get all keys on that layer, or lower if current is PassThrough
         let keys: Vec<Key, BUTTONS> = buttons.iter()
             .map(|ks| self.get_key(ks, layer))
@@ -93,13 +89,13 @@ impl State {
         events
     }
     fn ms_to_ticks(ms: u8) -> u8 {
-        ms / DELAY_MS
+        ms / DELAY_MS as u8
     }
     fn get_key(&self, keys: &[Key; 4], layer: u8) -> Option<Key> {
-        match keys[layer] {
+        match keys[layer as usize] {
             Key::Dead => None,
-            Key::PassThrough(l) => self.get_key(keys, layer - l),
-            _ => Some(ks[layer])
+            Key::PassThrough(go_down) => self.get_key(keys, layer - go_down),
+            _ => Some(keys[layer as usize])
         }
     }
 

@@ -71,7 +71,7 @@ impl Layout {
     pub fn get(&self, button: usize) -> [Key; LAYERS] {
         let row = button / ROWS;
         let col = button % COLS;
-        let mut b = [Key; LAYERS];
+        let mut b = [Key::Dead; LAYERS];
         for layer in 0..LAYERS {
             b[layer] = self.get_key(layer, row, col);
         }
@@ -110,23 +110,23 @@ impl Layout {
     }
 
 
-    pub fn apply_functions(&self, state: &State) -> State {
-        let layer: u8 = state.pressed()
-            .iter()
-            .map(|p| LAYOUT.get_layer_mod(p))
-            .sum();
-
-        let mut s = state.clone();
-        state.pressed()
-            .iter()
-            .for_each(|p| {
-                match self.matrix.at(layer as usize)
-                    .at(p.row() as usize)
-                    .load_at(p.col() as usize) {
-                    Function(f) => f(&mut s),
-                    _ => {}
-                }
-            });
-        s
+    pub fn apply_functions(&self, state: &State) {
+        // let layer: u8 = state.pressed()
+        //     .iter()
+        //     .map(|p| LAYOUT.get_layer_mod(p))
+        //     .sum();
+        //
+        // let mut s = state.clone();
+        // state.pressed()
+        //     .iter()
+        //     .for_each(|p| {
+        //         match self.matrix.at(layer as usize)
+        //             .at(p.row() as usize)
+        //             .load_at(p.col() as usize) {
+        //             Function(f) => f(&mut s),
+        //             _ => {}
+        //         }
+        //     });
+        // s
     }
 }

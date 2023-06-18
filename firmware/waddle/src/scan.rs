@@ -17,7 +17,7 @@ impl Scan {
 
     pub fn is_pressed(&self, button: usize) -> bool {
         let c = button % COLS;
-        let r = botton / ROWS;
+        let r = button / ROWS;
         let p = self.pressed[r] & (1 << c);
         p > 0
     }

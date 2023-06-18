@@ -13,7 +13,7 @@ use crate::keycode::k;
 use crate::layout::{BUTTONS, COLS, Key, LAYERS, Layout, LAYOUT, LEDS, NUM_CHUNKS, ROWS};
 use crate::position::position::Position;
 use crate::scan::Scan;
-use crate::state::STATE;
+use crate::state::State;
 
 pub type RowPinType = Pin<Output>;
 pub type ColPinType = Pin<Input<PullUp>>;
@@ -39,6 +39,7 @@ pub struct Keyboard {
     rows: Vec<EitherPin, ROWS>,
     cols: Vec<EitherPin, COLS>,
     leds: Vec<EitherPin, LEDS>,
+    state: State,
     last_events: Vec<Event, BUTTONS>,
 }
 
@@ -70,6 +71,7 @@ impl Keyboard {
             rows: row_pins,
             cols: col_pins,
             leds: led_pins,
+            state: State::new(),
             last_events: Vec::new(),
         }
     }
@@ -100,6 +102,7 @@ impl Keyboard {
             rows: row_pins,
             cols: col_pins,
             leds: led_pins,
+            state: State::new(),
             last_events: Vec::new(),
         }
     }
@@ -122,14 +125,14 @@ impl Keyboard {
         }
         if self.usb_device.state() == UsbDeviceState::Configured {
             let scan = self.scan();
-            STATE.tick(&scan);
+            self.state.tick(&scan);
             let events = self.state.events();
 
             if !events.eq(&self.last_events) {
-                self.set_leds(&STATE);
+                self.set_leds();
+                self.last_events = events.clone();
                 let kr: KeyboardReport = self.create_report(events);
                 self.hid_class.push_input(&kr);
-                self.last_events = events;
             }
 
             // if !state.eq(&self.last_state) {
@@ -149,12 +152,12 @@ impl Keyboard {
     }
 
     fn scan(&mut self) -> Scan {
-        match self.scan_type {
+        return match self.scan_type {
             ScanType::ROW2COL => {
-                return self.scan_row2col();
+                self.scan_row2col()
             }
             ScanType::COL2ROW => {
-                return self.scan_col2row();
+                self.scan_col2row()
             }
         }
     }
@@ -176,8 +179,8 @@ impl Keyboard {
         Scan::new()
     }
 
-    fn set_leds(&mut self, state: &State) {
-        for (i, active) in state.led_state().iter().enumerate() {
+    fn set_leds(&mut self) {
+        for (i, active) in self.state.led_state().iter().enumerate() {
             match *active {
                 true => Self::low(self.leds.get_mut(i).unwrap()),
                 false => Self::high(self.leds.get_mut(i).unwrap()),
@@ -197,12 +200,14 @@ impl Keyboard {
                 .collect();
 
             let mods: u8 = keycodes.iter()
+                .map(|u| *u)
                 .filter(k::is_mod)
                 .map(k::to_mod_bitfield)
                 .sum();
 
             let keys: Vec<u8, BUTTONS> = keycodes.iter()
-                .filter(!k::is_mod)
+                .map(|u| *u)
+                .filter(|key| !k::is_mod(key))
                 .collect();
 
             let mut kc = [0; 6];

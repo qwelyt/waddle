@@ -118,23 +118,12 @@ fn main() -> ! {
         pins.d4.into_pull_up_input().downgrade(),
     ];
 
-    // let rows = vec![pins.a3.into_output().downgrade()];
-    // let cols = vec![pins.d2.into_output().downgrade()];
-
-    // let rows = vec![
-    //     pins.a3.into_output_high().downgrade(),
-    //     pins.a2.into_output_high().downgrade(),
-    // ];
-    // let cols = vec![
-    //     pins.d2.into_pull_up_input().downgrade(),
-    //     pins.d3.into_pull_up_input().downgrade(),
-    // ];
     let mut leds = vec![
         pins.led_rx.into_output().downgrade(),
         pins.rx.into_output().downgrade(),
         pins.tx.into_output().downgrade(),
     ];
-    leds.iter_mut().map(|p| p.set_low());
+    leds.iter_mut().map(|p| p.set_high());
 
     unsafe {
         KEYBOARD = Some(Keyboard::row2col(

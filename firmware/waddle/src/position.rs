@@ -1,4 +1,6 @@
 pub mod position {
+    use crate::layout::COLS;
+
     #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
     pub struct Position {
         row: u8,
@@ -8,6 +10,12 @@ pub mod position {
     impl Position {
         pub const fn new(row: u8, col: u8) -> Self {
             Self { row, col }
+        }
+
+        pub fn from(i: usize) -> Self {
+            let r = i / COLS;
+            let c = i % COLS;
+            Self::new(r as u8, c as u8)
         }
 
         pub fn row(&self) -> u8 {

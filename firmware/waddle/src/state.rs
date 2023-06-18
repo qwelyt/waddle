@@ -26,47 +26,45 @@ impl State {
             self.released[i] = 0; // Reset released
 
             if scan.is_pressed(i) {
-                self.pressed[i] = self.pressed[i] + 1;
+                let cur_val = self.pressed[i];
+                let new_val = cur_val.saturating_add(1);
+                self.pressed[i] = new_val;
+                // self.pressed[i] = 0;
             } else {
                 // It's either 0 as it was never pressed which means there is no change
                 // Or it was pressed and we should check for how long it was pressed to check for
                 // on-holds.
                 self.released[i] = self.pressed[i];
+                self.pressed[i] = 0;
             }
         }
     }
 
 
     pub fn events(&mut self) -> Vec<Event, BUTTONS> {
-        let mut buttons: Vec<[Key; LAYERS], BUTTONS> = Vec::new();
+        let mut buttons: Vec<Position, BUTTONS> = Vec::new();
         for i in 0..BUTTONS {
-            let ticks = self.released[i];
-            if ticks > 2 {
+            let rticks = self.released[i];
+            if rticks > 2 {
                 // Check for on-holds. If ticks are below the on-hold limit then
                 // send the non-hold key as an event.
                 // If the ticks are *over* then we have already activated that key
                 // and should do nothing
             }
 
-            let ticks = self.pressed[i];
-            if ticks > 2 {
-                buttons.push(LAYOUT.get(i));
+            let pticks = self.pressed[i];
+            if pticks > 2 {
+                buttons.push(Position::from(i));
             }
         }
-        // 1. Find which layer we are on
+        // // 1. Find which layer we are on
         let layer: u8 = buttons.iter()
-            .map(|ks| ks.iter()
-                .map(|k| match k {
-                    Key::LayerMo(layer) => *layer,
-                    _ => 0,
-                })
-                .sum::<u8>()
-            ).sum::<u8>();
-        // 2. Get all keys on that layer, or lower if current is PassThrough
+            .map(|p| LAYOUT.get_layer_mod(p))
+            .sum();
+
+        // // 2. Get all keys on that layer, or lower if current is PassThrough
         let keys: Vec<Key, BUTTONS> = buttons.iter()
-            .map(|ks| self.get_key(ks, layer))
-            .filter(Option::is_some)
-            .map(Option::unwrap)
+            .map(|p| LAYOUT.get_key(layer, p))
             .collect();
 
         // 3. Add KeyCodes and Functions as events

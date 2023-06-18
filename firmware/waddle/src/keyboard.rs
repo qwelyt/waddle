@@ -18,7 +18,7 @@ use crate::state::State;
 pub type RowPinType = Pin<Output>;
 pub type ColPinType = Pin<Input<PullUp>>;
 
-pub const DELAY_MS: u16 = 10;
+pub const DELAY_MS: u16 = 20;
 
 pub enum ScanType {
     ROW2COL,
@@ -128,25 +128,13 @@ impl Keyboard {
             self.state.tick(&scan);
             let events = self.state.events();
 
+            self.set_leds();
             if !events.eq(&self.last_events) {
-                self.set_leds();
                 self.last_events = events.clone();
                 let kr: KeyboardReport = self.create_report(events);
                 self.hid_class.push_input(&kr);
             }
 
-            // if !state.eq(&self.last_state) {
-            //     // self.leds[0].set_low();
-            //     // self.leds[1].set_high();
-            //     let state = LAYOUT.apply_functions(&state);
-            //     self.set_leds(&state);
-            //     let kr: KeyboardReport = self.create_report(&state);
-            //     self.hid_class.push_input(&kr);
-            //     self.last_state = state;
-            // } else {
-            //     // self.leds[1].set_low();
-            //     // self.leds[0].set_high();
-            // }
             delay_ms(DELAY_MS);
         }
     }

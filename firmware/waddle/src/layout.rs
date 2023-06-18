@@ -69,17 +69,17 @@ impl Layout {
     }
 
     pub fn get(&self, button: usize) -> [Key; LAYERS] {
-        let row = button / ROWS;
-        let col = button % COLS;
+        // let row = button / COLS;
+        // let col = button % COLS;
         let mut b = [Key::Dead; LAYERS];
-        for layer in 0..LAYERS {
-            b[layer] = self.get_key(layer, row, col);
-        }
+        // for layer in 0..LAYERS {
+        //     b[layer] = self.get_key(layer, row, col);
+        // }
         b
     }
 
-    pub fn get_key(&self, layer: usize, row: usize, col: usize) -> Key {
-        self.matrix.at(layer).at(row).at(col).load()
+    pub fn get_key(&self, layer: u8, position: &Position) -> Key {
+        self.matrix.at(layer as usize).at(position.row() as usize).at(position.col() as usize).load()
     }
 
     pub fn get_layer_mod(&self, position: &Position) -> u8 {
@@ -107,26 +107,5 @@ impl Layout {
 
     pub fn get_non_mod(&self, layer: u8, position: &Position) -> Option<u8> {
         self.get_keycode(layer, position).filter(|u| !k::is_mod(u))
-    }
-
-
-    pub fn apply_functions(&self, state: &State) {
-        // let layer: u8 = state.pressed()
-        //     .iter()
-        //     .map(|p| LAYOUT.get_layer_mod(p))
-        //     .sum();
-        //
-        // let mut s = state.clone();
-        // state.pressed()
-        //     .iter()
-        //     .for_each(|p| {
-        //         match self.matrix.at(layer as usize)
-        //             .at(p.row() as usize)
-        //             .load_at(p.col() as usize) {
-        //             Function(f) => f(&mut s),
-        //             _ => {}
-        //         }
-        //     });
-        // s
     }
 }

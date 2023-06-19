@@ -170,8 +170,8 @@ impl Keyboard {
     fn set_leds(&mut self) {
         for (i, active) in self.state.led_state().iter().enumerate() {
             match *active {
-                true => Self::low(self.leds.get_mut(i).unwrap()),
-                false => Self::high(self.leds.get_mut(i).unwrap()),
+                true => Self::high(self.leds.get_mut(i).unwrap()),
+                false => Self::low(self.leds.get_mut(i).unwrap()),
             }
         }
     }

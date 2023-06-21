@@ -5,6 +5,7 @@ use crate::keyboard::DELAY_MS;
 use crate::layout::{BUTTONS, Key, LAYERS, LAYOUT, LEDS};
 use crate::position::position::Position;
 use crate::scan::Scan;
+use crate::vec;
 
 pub struct State {
     pressed: [u8; BUTTONS],
@@ -86,6 +87,7 @@ impl State {
     fn get_key(&self, position: &Position, layer: u8) -> Option<Event> {
         match LAYOUT.get_key(layer, position) {
             Key::KeyCode(kc) => Some(Event::KeyCode(kc)),
+            // Key::KeyCode(kc) => None,
             Key::PassThrough(go_down) => self.get_key(position, layer - go_down),
             _ => None
         }

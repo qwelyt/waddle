@@ -14,6 +14,7 @@ use crate::layout::{BUTTONS, COLS, Key, LAYERS, Layout, LAYOUT, LEDS, NUM_CHUNKS
 use crate::position::position::Position;
 use crate::scan::Scan;
 use crate::state::State;
+use crate::vec;
 
 pub type RowPinType = Pin<Output>;
 pub type ColPinType = Pin<Input<PullUp>>;
@@ -131,10 +132,9 @@ impl Keyboard {
             self.set_leds();
             if !events.eq(&self.last_events) {
                 self.last_events = events.clone();
-                let kr: KeyboardReport = self.create_report(events);
+                let kr: KeyboardReport = self.create_report(&events);
                 self.hid_class.push_input(&kr);
             }
-
             delay_ms(DELAY_MS);
         }
     }
@@ -176,37 +176,33 @@ impl Keyboard {
         }
     }
 
-    fn create_report(&self, events: Vec<Event, BUTTONS>) -> KeyboardReport {
+    fn create_report(&self, events: &Vec<Event, BUTTONS>) -> KeyboardReport {
         if !events.is_empty() {
-            let keycodes: Vec<u8, BUTTONS> = events.iter()
+            let mods: u8 = events.iter()
                 .map(|e| match e {
-                    Event::KeyCode(kc) => Some(*kc),
-                    _ => None,
+                    Event::KeyCode(kc) => *kc,
+                    _ => 0,
                 })
-                .filter(Option::is_some)
-                .map(Option::unwrap)
-                .collect();
-
-            let mods: u8 = keycodes.iter()
-                .map(|u| *u)
                 .filter(k::is_mod)
                 .map(k::to_mod_bitfield)
                 .sum();
 
-            let keys: Vec<u8, BUTTONS> = keycodes.iter()
-                .map(|u| *u)
-                .filter(|key| !k::is_mod(key))
-                .collect();
-
-            let mut kc = [0; 6];
-            for (i, k) in keys.iter().enumerate() {
-                kc[i] = *k;
+            let mut key_codes = [0; 6];
+            for (i, k) in events.iter()
+                .map(|e| match e {
+                    Event::KeyCode(kc) => *kc,
+                    _ => 0,
+                })
+                .filter(k::is_not_mod)
+                .enumerate() {
+                key_codes[i] = k;
             }
+
             return KeyboardReport {
                 modifier: mods,
                 reserved: 0,
                 leds: 0,
-                keycodes: kc,
+                keycodes: key_codes,
             };
         }
         KeyboardReport {

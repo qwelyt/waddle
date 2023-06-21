@@ -26,9 +26,7 @@ impl State {
             self.released[i] = 0; // Reset released
 
             if scan.is_pressed(i) {
-                let cur_val = self.pressed[i];
-                let new_val = cur_val.saturating_add(1);
-                self.pressed[i] = new_val;
+                self.pressed[i] = self.pressed[i].saturating_add(1);
                 // self.pressed[i] = 0;
             } else {
                 // It's either 0 as it was never pressed which means there is no change
@@ -42,7 +40,8 @@ impl State {
 
 
     pub fn events(&mut self) -> Vec<Event, BUTTONS> {
-        let mut buttons: Vec<Position, BUTTONS> = Vec::new();
+        // let mut buttons: Vec<Position, BUTTONS> = Vec::new();
+        let mut buttons: [Option<Position>; BUTTONS] = [None; BUTTONS];
         for i in 0..BUTTONS {
             let rticks = self.released[i];
             if rticks > 2 {
@@ -54,32 +53,27 @@ impl State {
 
             let pticks = self.pressed[i];
             if pticks > 2 {
-                buttons.push(Position::from(i));
+                // buttons.push(Position::from(i));
+                buttons[i] = Some(Position::from(i));
             }
         }
         // // 1. Find which layer we are on
         let layer: u8 = buttons.iter()
-            .map(|p| LAYOUT.get_layer_mod(p))
+            .map(|o| *o)
+            .filter(Option::is_some)
+            .map(Option::unwrap)
+            .map(|p| LAYOUT.get_layer_mod(&p))
             .sum();
 
         // // 2. Get all keys on that layer, or lower if current is PassThrough
-        let keys: Vec<Key, BUTTONS> = buttons.iter()
-            .map(|p| LAYOUT.get_key(layer, p))
-            .collect();
-
         // 3. Add KeyCodes and Functions as events
         // 4. Check if on-holds. If they are above limit, get the key.
         //      If they are below, ignore.
-        let events: Vec<Event, BUTTONS> = keys.iter()
-            .map(|k| match k {
-                Key::KeyCode(kc) => Some(Event::KeyCode(*kc)),
-                // Key::Function(f) => Some(Event::Function(*f)), // Why not just ... apply directly?
-                Key::Function(f) => {
-                    f(self);
-                    None
-                }
-                _ => None
-            })
+        let events: Vec<Event, BUTTONS> = buttons.iter()
+            .map(|o| *o)
+            .filter(Option::is_some)
+            .map(Option::unwrap)
+            .map(|p| self.get_key(&p, layer))
             .filter(Option::is_some)
             .map(Option::unwrap)
             .collect();
@@ -89,11 +83,11 @@ impl State {
     fn ms_to_ticks(ms: u8) -> u8 {
         ms / DELAY_MS as u8
     }
-    fn get_key(&self, keys: &[Key; 4], layer: u8) -> Option<Key> {
-        match keys[layer as usize] {
-            Key::Dead => None,
-            Key::PassThrough(go_down) => self.get_key(keys, layer - go_down),
-            _ => Some(keys[layer as usize])
+    fn get_key(&self, position: &Position, layer: u8) -> Option<Event> {
+        match LAYOUT.get_key(layer, position) {
+            Key::KeyCode(kc) => Some(Event::KeyCode(kc)),
+            Key::PassThrough(go_down) => self.get_key(position, layer - go_down),
+            _ => None
         }
     }
 

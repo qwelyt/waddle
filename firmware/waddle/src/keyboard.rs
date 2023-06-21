@@ -147,7 +147,7 @@ impl Keyboard {
             ScanType::COL2ROW => {
                 self.scan_col2row()
             }
-        }
+        };
     }
 
     fn scan_row2col(&mut self) -> Scan {

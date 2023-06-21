@@ -2,7 +2,7 @@ use avr_progmem::progmem;
 use avr_progmem::wrapper::ProgMem;
 
 use k::norde::se;
-use Key::{Dead, Function, KeyCode, LayerCh, LayerMo, PassThrough};
+use Key::{Dead, Function, KeyCode, LayerMo, PassThrough};
 
 use crate::keycode::k;
 use crate::keycode::k::layer;
@@ -68,16 +68,6 @@ impl Layout {
         Self { matrix: MATRIX }
     }
 
-    pub fn get(&self, button: usize) -> [Key; LAYERS] {
-        // let row = button / COLS;
-        // let col = button % COLS;
-        let mut b = [Key::Dead; LAYERS];
-        // for layer in 0..LAYERS {
-        //     b[layer] = self.get_key(layer, row, col);
-        // }
-        b
-    }
-
     pub fn get_key(&self, layer: u8, position: &Position) -> Key {
         self.matrix.at(layer as usize).at(position.row() as usize).at(position.col() as usize).load()
     }
@@ -91,21 +81,21 @@ impl Layout {
         }
     }
 
-    pub fn get_keycode(&self, layer: u8, position: &Position) -> Option<u8> {
-        match self.matrix.at(layer as usize)
-            .at(position.row() as usize)
-            .load_at(position.col() as usize) {
-            KeyCode(kc) => Some(kc),
-            PassThrough(l) => self.get_keycode(layer - l, position),
-            _ => None,
-        }
-    }
+    // pub fn get_keycode(&self, layer: u8, position: &Position) -> Option<u8> {
+    //     match self.matrix.at(layer as usize)
+    //         .at(position.row() as usize)
+    //         .load_at(position.col() as usize) {
+    //         KeyCode(kc) => Some(kc),
+    //         PassThrough(l) => self.get_keycode(layer - l, position),
+    //         _ => None,
+    //     }
+    // }
 
-    pub fn get_mod(&self, layer: u8, position: &Position) -> Option<u8> {
-        self.get_keycode(layer, position).filter(k::is_mod).map(k::to_mod_bitfield)
-    }
-
-    pub fn get_non_mod(&self, layer: u8, position: &Position) -> Option<u8> {
-        self.get_keycode(layer, position).filter(|u| !k::is_mod(u))
-    }
+    // pub fn get_mod(&self, layer: u8, position: &Position) -> Option<u8> {
+    //     self.get_keycode(layer, position).filter(k::is_mod).map(k::to_mod_bitfield)
+    // }
+    //
+    // pub fn get_non_mod(&self, layer: u8, position: &Position) -> Option<u8> {
+    //     self.get_keycode(layer, position).filter(|u| !k::is_mod(u))
+    // }
 }

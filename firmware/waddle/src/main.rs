@@ -81,10 +81,7 @@ fn main() -> ! {
             &*UB.insert(UsbBus::new(usb))
         };
         USB_BUS = Some(usb_bus);
-    }
 
-
-    unsafe {
         // Set up the USB Communications Class Device driver for debugging
         let mut debug_port = DebugPort(SerialPort::new(USB_BUS.unwrap()));
 

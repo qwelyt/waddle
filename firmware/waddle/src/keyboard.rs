@@ -195,6 +195,7 @@ impl Keyboard {
                 })
                 .filter(k::is_not_mod)
                 .enumerate() {
+                if i > 5 { break; }
                 key_codes[i] = k;
             }
 

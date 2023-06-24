@@ -147,6 +147,10 @@ pub mod k {
         }
     }
 
+    pub fn is_not_mod(key: &u8) -> bool {
+        !is_mod(key)
+    }
+
     pub fn to_mod_bitfield(key: u8) -> u8 {
         match key {
             L_CTRL => 0b00000001,

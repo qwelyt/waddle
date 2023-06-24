@@ -2,7 +2,7 @@ use avr_progmem::progmem;
 use avr_progmem::wrapper::ProgMem;
 
 use k::norde::se;
-use Key::{Dead, Function, KeyCode, LayerCh, LayerMo, PassThrough};
+use Key::{Dead, Function, KeyCode, LayerMo, PassThrough};
 
 use crate::keycode::k;
 use crate::keycode::k::layer;
@@ -67,6 +67,11 @@ impl Layout {
     pub fn new() -> Self {
         Self { matrix: MATRIX }
     }
+
+    pub fn get_key(&self, layer: u8, position: &Position) -> Key {
+        self.matrix.at(layer as usize).at(position.row() as usize).at(position.col() as usize).load()
+    }
+
     pub fn get_layer_mod(&self, position: &Position) -> u8 {
         match self.matrix.at(0)
             .at(position.row() as usize)
@@ -76,42 +81,21 @@ impl Layout {
         }
     }
 
-    pub fn get_keycode(&self, layer: u8, position: &Position) -> Option<u8> {
-        match self.matrix.at(layer as usize)
-            .at(position.row() as usize)
-            .load_at(position.col() as usize) {
-            KeyCode(kc) => Some(kc),
-            PassThrough(l) => self.get_keycode(layer - l, position),
-            _ => None,
-        }
-    }
+    // pub fn get_keycode(&self, layer: u8, position: &Position) -> Option<u8> {
+    //     match self.matrix.at(layer as usize)
+    //         .at(position.row() as usize)
+    //         .load_at(position.col() as usize) {
+    //         KeyCode(kc) => Some(kc),
+    //         PassThrough(l) => self.get_keycode(layer - l, position),
+    //         _ => None,
+    //     }
+    // }
 
-    pub fn get_mod(&self, layer: u8, position: &Position) -> Option<u8> {
-        self.get_keycode(layer, position).filter(k::is_mod).map(k::to_mod_bitfield)
-    }
-
-    pub fn get_non_mod(&self, layer: u8, position: &Position) -> Option<u8> {
-        self.get_keycode(layer, position).filter(|u| !k::is_mod(u))
-    }
-
-
-    pub fn apply_functions(&self, state: &State) -> State {
-        let layer: u8 = state.pressed()
-            .iter()
-            .map(|p| LAYOUT.get_layer_mod(p))
-            .sum();
-
-        let mut s = state.clone();
-        state.pressed()
-            .iter()
-            .for_each(|p| {
-                match self.matrix.at(layer as usize)
-                    .at(p.row() as usize)
-                    .load_at(p.col() as usize) {
-                    Function(f) => f(&mut s),
-                    _ => {}
-                }
-            });
-        s
-    }
+    // pub fn get_mod(&self, layer: u8, position: &Position) -> Option<u8> {
+    //     self.get_keycode(layer, position).filter(k::is_mod).map(k::to_mod_bitfield)
+    // }
+    //
+    // pub fn get_non_mod(&self, layer: u8, position: &Position) -> Option<u8> {
+    //     self.get_keycode(layer, position).filter(|u| !k::is_mod(u))
+    // }
 }

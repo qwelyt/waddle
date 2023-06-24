@@ -1,61 +1,112 @@
+use core::cmp::max_by_key;
+
 use heapless::Vec;
 
-use crate::layout::{BUTTONS, COLS, LEDS, ROWS};
+use crate::keyboard::DELAY_MS;
+use crate::layout::{BUTTONS, Key, LAYERS, LAYOUT, LEDS};
 use crate::position::position::Position;
+use crate::scan::Scan;
+use crate::state::ButtonState::{Pressed, Released};
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum ButtonState {
+    Released,
+    Pressed,
+    Held,
+}
+
 pub struct State {
-    pressed: [u16; ROWS],
+    pressed: [u8; BUTTONS],
+    released: [u8; BUTTONS],
     leds: u8,
 }
 
 impl State {
-    pub fn empty() -> Self {
+    pub fn new() -> Self {
         Self {
-            pressed: [0; ROWS],
+            pressed: [0; BUTTONS],
+            released: [0; BUTTONS],
             leds: 0,
         }
     }
 
-    pub fn new(pressed: [u16; ROWS], leds: u8) -> Self {
-        Self { pressed, leds }
+    pub fn tick(&mut self, scan: &Scan) -> [ButtonState; 48] {
+        for i in 0..BUTTONS {
+            self.released[i] = 0; // Reset released
+
+            if scan.is_pressed(i) {
+                self.pressed[i] = self.pressed[i].saturating_add(1);
+                // self.pressed[i] = 0;
+            } else {
+                // It's either 0 as it was never pressed which means there is no change
+                // Or it was pressed and we should check for how long it was pressed to check for
+                // on-holds.
+                self.released[i] = self.pressed[i];
+                self.pressed[i] = 0;
+            }
+        }
+        let mut button_state = [Released; BUTTONS];
+        let layer = self.layer();
+        for i in 0..BUTTONS {
+            // let key = LAYOUT.get_key()
+            // ToDo: Handle Hold
+            if self.pressed[i] > 2 {
+                button_state[i] = Pressed;
+            } else {
+                button_state[i] = Released;
+            }
+        }
+        button_state
     }
 
-    pub fn clean(&self) -> Self {
-        Self {
-            pressed: [0; ROWS],
-            leds: self.leds,
+    pub fn keys(&self) -> Vec<Key, BUTTONS> {
+        // Check for on-holds. If ticks are below the on-hold limit then
+        // send the non-hold key as an event.
+        // If the ticks are *over* then we have already activated that key
+        // and should do nothing
+        // // 1. Find which layer we are on
+        // // 2. Get all keys on that layer, or lower if current is PassThrough
+        // 3. Add KeyCodes and Functions as events
+        // 4. Check if on-holds. If they are above limit, get the key.
+        //      If they are below, ignore.
+        let layer = self.layer();
+
+        let keys: Vec<Key, BUTTONS> = self.pressed.iter().enumerate()
+            .filter(|(i, v)| **v >= 2)
+            .map(|(i, v)| Position::from(i))
+            .map(|p| State::get_key(&p, layer))
+            .filter(Option::is_some)
+            .map(Option::unwrap)
+            .collect();
+        keys
+    }
+
+    fn layer(&self) -> u8 {
+        self.pressed.iter().enumerate()
+            .filter(|(i, v)| **v >= 2)
+            .map(|(i, v)| Position::from(i))
+            .map(|p| LAYOUT.get_layer_mod(&p))
+            .sum()
+    }
+
+    fn ms_to_ticks(ms: u8) -> u8 {
+        ms / DELAY_MS as u8
+    }
+
+    fn get_key(position: &Position, layer: u8) -> Option<Key> {
+        match LAYOUT.get_key(layer, position) {
+            Key::KeyCode(kc) => Some(Key::KeyCode(kc)),
+            Key::Function(f) => Some(Key::Function(f)),
+            Key::PassThrough(go_down) => State::get_key(position, layer - go_down),
+            _ => None
         }
     }
 
-    pub fn intersect(a: State, b: State) -> State {
-        let mut intersect = [0; ROWS];
-        for r in 0..ROWS {
-            intersect[r] = a.pressed[r] & b.pressed[r];
-        }
-        State::new(intersect, a.leds)
-    }
-
-    pub fn set_pressed(&mut self, row: usize, col: usize) {
-        self.pressed[row] = self.pressed[row] | (1 << col)
-    }
 
     pub fn toggle_led(&mut self, led: u8) {
         self.leds = self.leds ^ (1 << led)
     }
 
-    pub fn pressed(&self) -> Vec<Position, BUTTONS> {
-        let mut v = Vec::new();
-        for r in 0..ROWS {
-            for c in 0..COLS {
-                let p = self.pressed[r] & (1 << c);
-                if p > 0 {
-                    v.push(Position::new(u8::try_from(r).unwrap(), u8::try_from(c).unwrap()));
-                }
-            }
-        }
-        v
-    }
 
     pub fn led_state(&self) -> [bool; LEDS] {
         let mut leds = [false; LEDS];

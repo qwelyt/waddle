@@ -1,11 +1,19 @@
+use core::cmp::max_by_key;
+
 use heapless::Vec;
 
-use crate::event::Event;
 use crate::keyboard::DELAY_MS;
 use crate::layout::{BUTTONS, Key, LAYERS, LAYOUT, LEDS};
 use crate::position::position::Position;
 use crate::scan::Scan;
-use crate::vec;
+use crate::state::ButtonState::{Pressed, Released};
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum ButtonState {
+    Released,
+    Pressed,
+    Held,
+}
 
 pub struct State {
     pressed: [u8; BUTTONS],
@@ -22,7 +30,7 @@ impl State {
         }
     }
 
-    pub fn tick(&mut self, scan: &Scan) {
+    pub fn tick(&mut self, scan: &Scan) -> [ButtonState; 48] {
         for i in 0..BUTTONS {
             self.released[i] = 0; // Reset released
 
@@ -37,58 +45,59 @@ impl State {
                 self.pressed[i] = 0;
             }
         }
-    }
-
-
-    pub fn events(&mut self) -> Vec<Event, BUTTONS> {
-        // let mut buttons: Vec<Position, BUTTONS> = Vec::new();
-        let mut buttons: [Option<Position>; BUTTONS] = [None; BUTTONS];
+        let mut button_state = [Released; BUTTONS];
+        let layer = self.layer();
         for i in 0..BUTTONS {
-            let rticks = self.released[i];
-            if rticks > 2 {
-                // Check for on-holds. If ticks are below the on-hold limit then
-                // send the non-hold key as an event.
-                // If the ticks are *over* then we have already activated that key
-                // and should do nothing
-            }
-
-            let pticks = self.pressed[i];
-            if pticks > 2 {
-                // buttons.push(Position::from(i));
-                buttons[i] = Some(Position::from(i));
+            // let key = LAYOUT.get_key()
+            // ToDo: Handle Hold
+            if self.pressed[i] > 2 {
+                button_state[i] = Pressed;
+            } else {
+                button_state[i] = Released;
             }
         }
-        // // 1. Find which layer we are on
-        let layer: u8 = buttons.iter()
-            .map(|o| *o)
-            .filter(Option::is_some)
-            .map(Option::unwrap)
-            .map(|p| LAYOUT.get_layer_mod(&p))
-            .sum();
+        button_state
+    }
 
+    pub fn keys(&self) -> Vec<Key, BUTTONS> {
+        // Check for on-holds. If ticks are below the on-hold limit then
+        // send the non-hold key as an event.
+        // If the ticks are *over* then we have already activated that key
+        // and should do nothing
+        // // 1. Find which layer we are on
         // // 2. Get all keys on that layer, or lower if current is PassThrough
         // 3. Add KeyCodes and Functions as events
         // 4. Check if on-holds. If they are above limit, get the key.
         //      If they are below, ignore.
-        let events: Vec<Event, BUTTONS> = buttons.iter()
-            .map(|o| *o)
-            .filter(Option::is_some)
-            .map(Option::unwrap)
-            .map(|p| self.get_key(&p, layer))
+        let layer = self.layer();
+
+        let keys: Vec<Key, BUTTONS> = self.pressed.iter().enumerate()
+            .filter(|(i, v)| **v >= 2)
+            .map(|(i, v)| Position::from(i))
+            .map(|p| State::get_key(&p, layer))
             .filter(Option::is_some)
             .map(Option::unwrap)
             .collect();
-
-        events
+        keys
     }
+
+    fn layer(&self) -> u8 {
+        self.pressed.iter().enumerate()
+            .filter(|(i, v)| **v >= 2)
+            .map(|(i, v)| Position::from(i))
+            .map(|p| LAYOUT.get_layer_mod(&p))
+            .sum()
+    }
+
     fn ms_to_ticks(ms: u8) -> u8 {
         ms / DELAY_MS as u8
     }
-    fn get_key(&self, position: &Position, layer: u8) -> Option<Event> {
+
+    fn get_key(position: &Position, layer: u8) -> Option<Key> {
         match LAYOUT.get_key(layer, position) {
-            Key::KeyCode(kc) => Some(Event::KeyCode(kc)),
-            // Key::KeyCode(kc) => None,
-            Key::PassThrough(go_down) => self.get_key(position, layer - go_down),
+            Key::KeyCode(kc) => Some(Key::KeyCode(kc)),
+            Key::Function(f) => Some(Key::Function(f)),
+            Key::PassThrough(go_down) => State::get_key(position, layer - go_down),
             _ => None
         }
     }

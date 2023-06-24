@@ -8,18 +8,18 @@ use usb_device::device::{UsbDevice, UsbDeviceState};
 use usbd_hid::descriptor::KeyboardReport;
 use usbd_hid::hid_class::HIDClass;
 
-use crate::event::Event;
 use crate::keycode::k;
 use crate::layout::{BUTTONS, COLS, Key, LAYERS, Layout, LAYOUT, LEDS, NUM_CHUNKS, ROWS};
 use crate::position::position::Position;
 use crate::scan::Scan;
-use crate::state::State;
+use crate::state::{ButtonState, State};
+use crate::state::ButtonState::Released;
 use crate::vec;
 
 pub type RowPinType = Pin<Output>;
 pub type ColPinType = Pin<Input<PullUp>>;
 
-pub const DELAY_MS: u16 = 20;
+pub const DELAY_MS: u16 = 5;
 
 pub enum ScanType {
     ROW2COL,
@@ -41,7 +41,7 @@ pub struct Keyboard {
     cols: Vec<EitherPin, COLS>,
     leds: Vec<EitherPin, LEDS>,
     state: State,
-    last_events: Vec<Event, BUTTONS>,
+    last_button_state: [ButtonState; BUTTONS],
 }
 
 impl Keyboard {
@@ -73,7 +73,7 @@ impl Keyboard {
             cols: col_pins,
             leds: led_pins,
             state: State::new(),
-            last_events: Vec::new(),
+            last_button_state: [Released; BUTTONS],
         }
     }
     pub fn col2row(
@@ -104,7 +104,7 @@ impl Keyboard {
             cols: col_pins,
             leds: led_pins,
             state: State::new(),
-            last_events: Vec::new(),
+            last_button_state: [Released; BUTTONS],
         }
     }
     pub fn poll(&mut self) {
@@ -126,15 +126,16 @@ impl Keyboard {
         }
         if self.usb_device.state() == UsbDeviceState::Configured {
             let scan = self.scan();
-            self.state.tick(&scan);
-            let events = self.state.events();
+            let button_state: [ButtonState; BUTTONS] = self.state.tick(&scan);
 
-            self.set_leds();
-            if !events.eq(&self.last_events) {
-                self.last_events = events.clone();
+            if button_state != self.last_button_state {
+                self.last_button_state = button_state;
+                let events = self.state.keys();
+                self.apply_functions(&events);
                 let kr: KeyboardReport = self.create_report(&events);
                 self.hid_class.push_input(&kr);
             }
+            self.set_leds();
             delay_ms(DELAY_MS);
         }
     }
@@ -176,13 +177,21 @@ impl Keyboard {
         }
     }
 
-    fn create_report(&self, events: &Vec<Event, BUTTONS>) -> KeyboardReport {
+    fn create_report(&mut self, events: &Vec<Key, BUTTONS>) -> KeyboardReport {
         if !events.is_empty() {
+            events.iter()
+                .map(|key| match key {
+                    Key::Function(f) => f(&mut self.state),
+                    _ => {}
+                });
+
             let mods: u8 = events.iter()
-                .map(|e| match e {
-                    Event::KeyCode(kc) => *kc,
-                    _ => 0,
+                .map(|key| match key {
+                    Key::KeyCode(kc) => Some(*kc),
+                    _ => None,
                 })
+                .filter(Option::is_some)
+                .map(Option::unwrap)
                 .filter(k::is_mod)
                 .map(k::to_mod_bitfield)
                 .sum();
@@ -190,9 +199,11 @@ impl Keyboard {
             let mut key_codes = [0; 6];
             for (i, k) in events.iter()
                 .map(|e| match e {
-                    Event::KeyCode(kc) => *kc,
-                    _ => 0,
+                    Key::KeyCode(kc) => Some(*kc),
+                    _ => None,
                 })
+                .filter(Option::is_some)
+                .map(Option::unwrap)
                 .filter(k::is_not_mod)
                 .enumerate() {
                 if i > 5 { break; }
@@ -243,5 +254,13 @@ impl Keyboard {
             EitherPin::Output(p) => { p.set_low(); }
             EitherPin::None => {}
         }
+    }
+
+    fn apply_functions(&mut self, keys: &Vec<Key, BUTTONS>) {
+        keys.iter()
+            .for_each(|k| match k {
+                Key::Function(f) => f(&mut self.state),
+                _ => {}
+            });
     }
 }

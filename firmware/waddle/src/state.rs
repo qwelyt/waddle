@@ -3,7 +3,7 @@ use core::cmp::max_by_key;
 use heapless::Vec;
 
 use crate::keyboard::DELAY_MS;
-use crate::layout::{BUTTONS, Key, LAYERS, LAYOUT, LEDS};
+use crate::layout::{BUTTONS, Key, KeyType, LAYERS, LAYOUT, LEDS};
 use crate::position::position::Position;
 use crate::scan::Scan;
 use crate::state::ButtonState::{Pressed, Released};
@@ -46,7 +46,7 @@ impl State {
             }
         }
         let mut button_state = [Released; BUTTONS];
-        let layer = self.layer();
+        // let layer = self.layer();
         for i in 0..BUTTONS {
             // let key = LAYOUT.get_key()
             // ToDo: Handle Hold
@@ -73,8 +73,8 @@ impl State {
 
         let keys: Vec<Key, BUTTONS> = self.pressed.iter().enumerate()
             .filter(|(i, v)| **v >= 2)
-            .map(|(i, v)| Position::from(i))
-            .map(|p| State::get_key(&p, layer))
+            .map(|(i, v)| (Position::from(i), v))
+            .map(|(p, v)| State::get_key(&p, layer, *v))
             .filter(Option::is_some)
             .map(Option::unwrap)
             .collect();
@@ -82,10 +82,21 @@ impl State {
     }
 
     fn layer(&self) -> u8 {
+        // self.pressed.iter().enumerate()
+        //     .filter(|(i, v)| **v >= 2)
+        //     .map(|(i, v)| Position::from(i))
+        //     .map(|p| LAYOUT.get_layer_mod(&p))
+        //     .sum()
         self.pressed.iter().enumerate()
             .filter(|(i, v)| **v >= 2)
-            .map(|(i, v)| Position::from(i))
-            .map(|p| LAYOUT.get_layer_mod(&p))
+            .map(|(i, v)| (Position::from(i), v))
+            .map(|(p, v)| State::get_key(&p, 0, *v))
+            .filter(Option::is_some)
+            .map(Option::unwrap)
+            .map(|k| match k {
+                Key::LayerMo(layer) => layer,
+                _ => 0
+            })
             .sum()
     }
 
@@ -93,13 +104,31 @@ impl State {
         ms / DELAY_MS as u8
     }
 
-    fn get_key(position: &Position, layer: u8) -> Option<Key> {
+    fn get_key(position: &Position, layer: u8, hold_time: u8) -> Option<Key> {
+        // match LAYOUT.get_key(layer, position) {
+        //     Key::KeyCode(kc) => Some(Key::KeyCode(kc)),
+        //     Key::Function(f) => Some(Key::Function(f)),
+        //     Key::PassThrough(go_down) => State::get_key(position, layer - go_down),
+        //     _ => None
+        // }
         match LAYOUT.get_key(layer, position) {
+            KeyType::Instant(key) => State::get_instant_key(key, position, layer, hold_time),
+            KeyType::OnHold(key1, hold_limit, key2) => State::get_hold_key(key1, hold_limit, key2, position, layer, hold_time)
+        }
+    }
+
+    fn get_instant_key(key: Key, position: &Position, layer: u8, hold_time: u8) -> Option<Key> {
+        match key {
             Key::KeyCode(kc) => Some(Key::KeyCode(kc)),
             Key::Function(f) => Some(Key::Function(f)),
-            Key::PassThrough(go_down) => State::get_key(position, layer - go_down),
+            Key::PassThrough(go_down) => State::get_key(position, layer - go_down, hold_time),
+            Key::LayerMo(l) => Some(Key::LayerMo(l)),
             _ => None
         }
+    }
+    fn get_hold_key(key1: Key, hold_limit: u8, key2: Key, position: &Position, layer: u8, hold_time: u8) -> Option<Key> {
+        let k = if hold_limit > hold_time { key1 } else { key2 };
+        State::get_instant_key(k, position, layer, hold_time)
     }
 
 

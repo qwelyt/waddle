@@ -25,34 +25,34 @@ impl State {
     pub fn new() -> Self {
         Self {
             pressed: [0; BUTTONS],
-            released: [0; BUTTONS],
+            released: [u8::MAX; BUTTONS],
             leds: 0,
         }
     }
 
     pub fn tick(&mut self, scan: &Scan) -> [ButtonState; 48] {
         for i in 0..BUTTONS {
-            self.released[i] = 0; // Reset released
-
+            // The key is either pressed or the key is released.
+            // We want to know for how long the key has been in each state since the last change.
+            // All keys start off as released TO THE MAX, and then usage changes everything.
+            // The pressed_time will help us know when to activate for example OnHolds
+            // The released_time will help us if we implement DoubleTap. Or TapHold.
+            // A TapHold checks for a short release and a long press.
+            // A DoubleTap check for a short release and a short press.
             if scan.is_pressed(i) {
                 self.pressed[i] = self.pressed[i].saturating_add(1);
-                // self.pressed[i] = 0;
+                self.released[i] = 0;
             } else {
-                // It's either 0 as it was never pressed which means there is no change
-                // Or it was pressed and we should check for how long it was pressed to check for
-                // on-holds.
-                self.released[i] = self.pressed[i];
+                self.released[i] = self.released[i].saturating_add(1);
                 self.pressed[i] = 0;
             }
         }
         let mut button_state = [Released; BUTTONS];
         // let layer = self.layer();
         for i in 0..BUTTONS {
-            // let key = LAYOUT.get_key()
-            // ToDo: Handle Hold
             if self.pressed[i] > 2 {
                 button_state[i] = Pressed;
-            } else {
+            } else if self.released[i] > 2 {
                 button_state[i] = Released;
             }
         }
@@ -69,12 +69,18 @@ impl State {
         // 3. Add KeyCodes and Functions as events
         // 4. Check if on-holds. If they are above limit, get the key.
         //      If they are below, ignore.
+
+        // TODO: As we are now dealing with on-holds, we can only send key presses for on-holds if they
+        // are either released or past the on-hold time. If a key is on-hold, and we are under the time limit
+        // then we can't send any keys. Perhaps we are just waiting for it to activate? Then we can't send key1.
+        // Only if we are past wait_time can we send key2, and only if we have release the
+        // key can we send key1 if we are under wait_time.
         let layer = self.layer();
 
         let keys: Vec<Key, BUTTONS> = self.pressed.iter().enumerate()
-            .filter(|(i, v)| **v >= 2)
-            .map(|(i, v)| (Position::from(i), v))
-            .map(|(p, v)| State::get_key(&p, layer, *v))
+            .filter(|(i, hold_time)| **hold_time >= 2)
+            .map(|(i, hold_time)| (Position::from(i), hold_time, self.released[i]))
+            .map(|(p, hold_time, release_time)| State::get_key(&p, layer, *hold_time, release_time))
             .filter(Option::is_some)
             .map(Option::unwrap)
             .collect();
@@ -82,15 +88,10 @@ impl State {
     }
 
     fn layer(&self) -> u8 {
-        // self.pressed.iter().enumerate()
-        //     .filter(|(i, v)| **v >= 2)
-        //     .map(|(i, v)| Position::from(i))
-        //     .map(|p| LAYOUT.get_layer_mod(&p))
-        //     .sum()
         self.pressed.iter().enumerate()
-            .filter(|(i, v)| **v >= 2)
-            .map(|(i, v)| (Position::from(i), v))
-            .map(|(p, v)| State::get_key(&p, 0, *v))
+            .filter(|(i, hold_time)| **hold_time >= 2)
+            .map(|(i, hold_time)| (Position::from(i), hold_time, self.released[i]))
+            .map(|(p, hold_time, release_time)| State::get_key(&p, 0, *hold_time, release_time))
             .filter(Option::is_some)
             .map(Option::unwrap)
             .map(|k| match k {
@@ -104,31 +105,34 @@ impl State {
         ms / DELAY_MS as u8
     }
 
-    fn get_key(position: &Position, layer: u8, hold_time: u8) -> Option<Key> {
-        // match LAYOUT.get_key(layer, position) {
-        //     Key::KeyCode(kc) => Some(Key::KeyCode(kc)),
-        //     Key::Function(f) => Some(Key::Function(f)),
-        //     Key::PassThrough(go_down) => State::get_key(position, layer - go_down),
-        //     _ => None
-        // }
+    fn get_key(position: &Position, layer: u8, hold_time: u8, release_time: u8) -> Option<Key> {
         match LAYOUT.get_key(layer, position) {
-            KeyType::Instant(key) => State::get_instant_key(key, position, layer, hold_time),
-            KeyType::OnHold(key1, hold_limit, key2) => State::get_hold_key(key1, hold_limit, key2, position, layer, hold_time)
+            KeyType::Instant(key) => State::get_instant_key(key, position, layer, hold_time, release_time),
+            KeyType::OnHold(key1, hold_limit, key2) => State::get_hold_key(key1, hold_limit, key2, position, layer, hold_time, release_time)
         }
     }
 
-    fn get_instant_key(key: Key, position: &Position, layer: u8, hold_time: u8) -> Option<Key> {
+    fn get_instant_key(key: Key, position: &Position, layer: u8, hold_time: u8, release_time: u8) -> Option<Key> {
         match key {
             Key::KeyCode(kc) => Some(Key::KeyCode(kc)),
             Key::Function(f) => Some(Key::Function(f)),
-            Key::PassThrough(go_down) => State::get_key(position, layer - go_down, hold_time),
+            Key::PassThrough(go_down) => State::get_key(position, layer - go_down, hold_time, release_time),
             Key::LayerMo(l) => Some(Key::LayerMo(l)),
             _ => None
         }
     }
-    fn get_hold_key(key1: Key, hold_limit: u8, key2: Key, position: &Position, layer: u8, hold_time: u8) -> Option<Key> {
-        let k = if hold_limit > hold_time { key1 } else { key2 };
-        State::get_instant_key(k, position, layer, hold_time)
+    fn get_hold_key(key1: Key, hold_limit: u8, key2: Key, position: &Position, layer: u8, hold_time: u8, release_time: u8) -> Option<Key> {
+        // // If the key is pressed, but hold_time is less than hold_limit then send no key.
+        // // If the key is pressed and hold_time is greater than hold_limit send key2
+        // // If the key is released and hold_time WAS less than hold_limit send key1
+        return if hold_time < hold_limit {
+            None
+        } else if hold_time >= hold_limit {
+            State::get_instant_key(key2, position, layer, hold_time, release_time)
+        } else {
+            // SHOULD be the only option left, right?
+            State::get_instant_key(key1, position, layer, hold_time, release_time)
+        }
     }
 
 

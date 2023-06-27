@@ -37,7 +37,7 @@ progmem! {
         [
             [Instant(KeyCode(k::TAB)),    Instant(KeyCode(k::Q)),      Instant(KeyCode(k::W)),         Instant(KeyCode(k::E)),     Instant(KeyCode(k::R)),  Instant(KeyCode(k::T)),      Instant(KeyCode(k::Y)),       Instant(KeyCode(k::U)),       Instant(KeyCode(k::I)),       Instant(KeyCode(k::O)),       Instant(KeyCode(k::P)),         Instant(KeyCode(se::Å)),        ],
             [Instant(KeyCode(k::ESC)),    Instant(KeyCode(k::A)),      Instant(KeyCode(k::S)),         Instant(KeyCode(k::D)),     Instant(KeyCode(k::F)),  Instant(KeyCode(k::G)),      Instant(KeyCode(k::H)),       Instant(KeyCode(k::J)),       Instant(KeyCode(k::K)),       Instant(KeyCode(k::L)),       Instant(KeyCode(se::Ö)),        Instant(KeyCode(se::Ä)),        ],
-            [Instant(KeyCode(k::L_SHFT)), Instant(KeyCode(k::Z)),      Instant(KeyCode(k::X)),         Instant(KeyCode(k::C)),     Instant(KeyCode(k::V)),  Instant(KeyCode(k::B)),      Instant(KeyCode(k::N)),       Instant(KeyCode(k::M)),       Instant(KeyCode(k::COMMA)),   Instant(KeyCode(k::DOT)),     Instant(KeyCode(se::DASH)),     Instant(KeyCode(k::R_SHFT)),    ],
+            [Instant(KeyCode(k::L_SHFT)), OnHold(KeyCode(k::Z), 4, KeyCode(k::L_SHFT)),      Instant(KeyCode(k::X)),         Instant(KeyCode(k::C)),     Instant(KeyCode(k::V)),  Instant(KeyCode(k::B)),      Instant(KeyCode(k::N)),       Instant(KeyCode(k::M)),       Instant(KeyCode(k::COMMA)),   Instant(KeyCode(k::DOT)),     Instant(KeyCode(se::DASH)),     Instant(KeyCode(k::R_SHFT)),    ],
             [Instant(KeyCode(k::L_CTRL)), Instant(KeyCode(k::L_SUPR)), Instant(KeyCode(k::BS_N_PIPE)), Instant(KeyCode(k::L_ALT)), Instant(LayerMo(1)),     Instant(KeyCode(k::SPACE)),  Instant(KeyCode(k::RETURN)),  Instant(LayerMo(2)),          Instant(KeyCode(k::R_ALT)),   Instant(KeyCode(k::MENU)),    Instant(KeyCode(k::R_SUPR)),    Instant(KeyCode(k::R_CTRL)),    ],
         ],
         [
@@ -77,31 +77,4 @@ impl Layout {
     pub fn get_key(&self, layer: u8, position: &Position) -> KeyType {
         self.matrix.at(layer as usize).at(position.row() as usize).at(position.col() as usize).load()
     }
-
-    // pub fn get_layer_mod(&self, position: &Position) -> u8 {
-    //     match self.matrix.at(0)
-    //         .at(position.row() as usize)
-    //         .load_at(position.col() as usize) {
-    //         LayerMo(l) => l,
-    //         _ => 0
-    //     }
-    // }
-
-    // pub fn get_keycode(&self, layer: u8, position: &Position) -> Option<u8> {
-    //     match self.matrix.at(layer as usize)
-    //         .at(position.row() as usize)
-    //         .load_at(position.col() as usize) {
-    //         KeyCode(kc) => Some(kc),
-    //         PassThrough(l) => self.get_keycode(layer - l, position),
-    //         _ => None,
-    //     }
-    // }
-
-    // pub fn get_mod(&self, layer: u8, position: &Position) -> Option<u8> {
-    //     self.get_keycode(layer, position).filter(k::is_mod).map(k::to_mod_bitfield)
-    // }
-    //
-    // pub fn get_non_mod(&self, layer: u8, position: &Position) -> Option<u8> {
-    //     self.get_keycode(layer, position).filter(|u| !k::is_mod(u))
-    // }
 }

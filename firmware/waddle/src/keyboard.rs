@@ -65,6 +65,8 @@ impl Keyboard {
         for (i, pin) in leds.into_iter().enumerate() {
             led_pins.insert(i, EitherPin::Output(pin));
         }
+        let mut state = State::new();
+        state.init();
         Self {
             usb_device,
             hid_class,
@@ -72,7 +74,7 @@ impl Keyboard {
             rows: row_pins,
             cols: col_pins,
             leds: led_pins,
-            state: State::new(),
+            state: state,
             last_button_state: [Released; BUTTONS],
         }
     }

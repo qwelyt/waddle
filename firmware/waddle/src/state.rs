@@ -25,12 +25,17 @@ impl State {
     pub fn new() -> Self {
         Self {
             pressed: [0; BUTTONS],
-            released: [u8::MAX; BUTTONS],
+            released: [0; BUTTONS],
             leds: 0,
         }
     }
+    pub fn init(&mut self) {
+        for i in 0..BUTTONS {
+            self.released[i] = u8::MAX;
+        }
+    }
 
-    pub fn tick(&mut self, scan: &Scan) -> [ButtonState; 48] {
+    pub fn tick(&mut self, scan: &Scan) -> [ButtonState; BUTTONS] {
         for i in 0..BUTTONS {
             // The key is either pressed or the key is released.
             // We want to know for how long the key has been in each state since the last change.
@@ -76,6 +81,20 @@ impl State {
         // Only if we are past wait_time can we send key2, and only if we have release the
         // key can we send key1 if we are under wait_time.
         let layer = self.layer();
+
+        // A key is relevant if it is pressed or if it is being held.
+        // This is true for Instants.
+        // For OnHold a key is relevant if it is held OR just released.
+        // If a key is NOT OnHold, then we should register release as release of the button, simple
+        // If it IS OnHold, the key is relevant and we need to check
+        //      1) Is the key still being held?
+        //          1.1) If over hold_limit then we send key2
+        //          1.2) If under hold_limit we do nothing
+        //      2) Is the key released?
+        //          2.1) If release_time is >1 tick it's dead. Blank report.
+        //          2.2) If release_time ti <2 tick check hold_time.
+        //              2.2.1) If over hold_limit it's dead. Blank report.
+        //              2.2.2) If under hold_limit send key1. Next tick will blank it.
 
         let keys: Vec<Key, BUTTONS> = self.pressed.iter().enumerate()
             .filter(|(i, hold_time)| **hold_time >= 2)
@@ -126,11 +145,15 @@ impl State {
         // // If the key is pressed and hold_time is greater than hold_limit send key2
         // // If the key is released and hold_time WAS less than hold_limit send key1
         return if hold_time < hold_limit {
-            None
+            // None
+            State::get_instant_key(key1, position, layer, hold_time, release_time)
         } else if hold_time >= hold_limit {
             State::get_instant_key(key2, position, layer, hold_time, release_time)
         } else {
             // SHOULD be the only option left, right?
+            // GAH! The button isn't pressed anymore when we currently achive this state, to it's
+            // never triggered! Need to scan all keys, not just pressed ones to make sure that we
+            // can actually trigger here
             State::get_instant_key(key1, position, layer, hold_time, release_time)
         }
     }

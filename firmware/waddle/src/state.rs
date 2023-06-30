@@ -1,7 +1,9 @@
 use core::cmp::max_by_key;
+use core::ops::Deref;
 
 use heapless::Vec;
 
+use crate::{rvec, vec};
 use crate::keyboard::DELAY_MS;
 use crate::layout::{BUTTONS, Key, KeyType, LAYERS, LAYOUT, LEDS};
 use crate::position::position::Position;
@@ -15,52 +17,102 @@ pub enum ButtonState {
     Held,
 }
 
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum Transition {
+    ReleasedToPressed,
+    PressedToReleased,
+    PressedToHeld,
+    HeldToReleased,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+struct Time {
+    pressed: u8,
+    released: u8,
+}
+
+impl Time {
+    fn new() -> Self { Self { pressed: 0, released: 0 } }
+    fn of(pressed: u8, released: u8) -> Self { Self { pressed, released } }
+    fn of_pressed(t: &Time) -> Self { Self { pressed: t.pressed.saturating_add(1), released: 0 } }
+    fn of_released(t: &Time) -> Self { Self { pressed: 0, released: t.released.saturating_add(1) } }
+    fn pressed(&mut self) { self.pressed = self.pressed.saturating_add(1); }
+    fn released(&mut self) { self.released = self.released.saturating_add(1); }
+}
+
+struct Button {
+    state: ButtonState,
+    time: Time,
+}
+
+impl Button {
+    fn new() -> Self { Self { state: Released, time: Time::new() } }
+    fn released(&mut self) {
+        if self.state == Pressed {
+            self.time.released = 0;
+        }
+        self.state = Released;
+        self.time.released();
+    }
+    fn pressed(&mut self) {
+        if self.state == Released {
+            self.time.pressed = 0;
+        }
+        self.state = Pressed;
+        self.time.pressed();
+    }
+
+    fn is_pressed(&self) -> bool {
+        self.state == Pressed && self.time.pressed > 2
+    }
+}
+
 pub struct State {
-    pressed: [u8; BUTTONS],
-    released: [u8; BUTTONS],
+    keys: Vec<Button, BUTTONS>,
+    // keys: [(u8, u8); BUTTONS],
     leds: u8,
 }
 
 impl State {
     pub fn new() -> Self {
         Self {
-            pressed: [0; BUTTONS],
-            released: [0; BUTTONS],
+            keys: rvec![Button::new(), BUTTONS],
+            // keys: [(0, 0);BUTTONS],
             leds: 0,
         }
     }
     pub fn init(&mut self) {
         for i in 0..BUTTONS {
-            self.released[i] = u8::MAX;
+            // self.keys[i] = Time::new();
+            // self.keys[i] = (0, u8::MAX);
+            // self.keys[i].1 = u8::MAX;
         }
     }
 
     pub fn tick(&mut self, scan: &Scan) -> [ButtonState; BUTTONS] {
-        for i in 0..BUTTONS {
-            // The key is either pressed or the key is released.
-            // We want to know for how long the key has been in each state since the last change.
-            // All keys start off as released TO THE MAX, and then usage changes everything.
-            // The pressed_time will help us know when to activate for example OnHolds
-            // The released_time will help us if we implement DoubleTap. Or TapHold.
-            // A TapHold checks for a short release and a long press.
-            // A DoubleTap check for a short release and a short press.
-            if scan.is_pressed(i) {
-                self.pressed[i] = self.pressed[i].saturating_add(1);
-                self.released[i] = 0;
-            } else {
-                self.released[i] = self.released[i].saturating_add(1);
-                self.pressed[i] = 0;
-            }
-        }
+        // The key is either pressed or the key is released.
+        // We want to know for how long the key has been in each state since the last change.
+        // All keys start off as released TO THE MAX, and then usage changes everything.
+        // The pressed_time will help us know when to activate for example OnHolds
+        // The released_time will help us if we implement DoubleTap. Or TapHold.
+        // A TapHold checks for a short release and a long press.
+        // A DoubleTap check for a short release and a short press.
+
+        self.keys.iter_mut().enumerate()
+            .for_each(|(i, key)| match scan.is_pressed(&i) {
+                true => key.pressed(),
+                false => key.released()
+            });
         let mut button_state = [Released; BUTTONS];
-        // let layer = self.layer();
-        for i in 0..BUTTONS {
-            if self.pressed[i] > 2 {
-                button_state[i] = Pressed;
-            } else if self.released[i] > 2 {
-                button_state[i] = Released;
-            }
-        }
+        button_state.iter_mut().enumerate()
+            .for_each(|(i, bs)| {
+                let k = &self.keys[i];
+                if k.is_pressed() {
+                    *bs = Pressed;
+                } else if !k.is_pressed() {
+                    *bs = Released;
+                }
+            });
         button_state
     }
 
@@ -96,10 +148,10 @@ impl State {
         //              2.2.1) If over hold_limit it's dead. Blank report.
         //              2.2.2) If under hold_limit send key1. Next tick will blank it.
 
-        let keys: Vec<Key, BUTTONS> = self.pressed.iter().enumerate()
-            .filter(|(i, hold_time)| **hold_time >= 2)
-            .map(|(i, hold_time)| (Position::from(i), hold_time, self.released[i]))
-            .map(|(p, hold_time, release_time)| State::get_key(&p, layer, *hold_time, release_time))
+        let keys: Vec<Key, BUTTONS> = self.keys.iter().enumerate()
+            // .filter(|(i,b)|b.is_pressed())
+            .map(|(i, button)| (Position::from(i), button))
+            .map(|(p, button)| State::get_key(&p, layer, button))
             .filter(Option::is_some)
             .map(Option::unwrap)
             .collect();
@@ -107,10 +159,10 @@ impl State {
     }
 
     fn layer(&self) -> u8 {
-        self.pressed.iter().enumerate()
-            .filter(|(i, hold_time)| **hold_time >= 2)
-            .map(|(i, hold_time)| (Position::from(i), hold_time, self.released[i]))
-            .map(|(p, hold_time, release_time)| State::get_key(&p, 0, *hold_time, release_time))
+        self.keys.iter().enumerate()
+            .filter(|(i, button)| button.time.pressed >= 2)
+            .map(|(i, button)| (Position::from(i), button))
+            .map(|(p, button)| State::get_key(&p, 0, button))
             .filter(Option::is_some)
             .map(Option::unwrap)
             .map(|k| match k {
@@ -124,37 +176,57 @@ impl State {
         ms / DELAY_MS as u8
     }
 
-    fn get_key(position: &Position, layer: u8, hold_time: u8, release_time: u8) -> Option<Key> {
+    fn get_key(position: &Position, layer: u8, button: &Button) -> Option<Key> {
         match LAYOUT.get_key(layer, position) {
-            KeyType::Instant(key) => State::get_instant_key(key, position, layer, hold_time, release_time),
-            KeyType::OnHold(key1, hold_limit, key2) => State::get_hold_key(key1, hold_limit, key2, position, layer, hold_time, release_time)
+            KeyType::Instant(key) => State::get_instant_key(key, position, layer, button),
+            KeyType::OnHold(key1, hold_limit, key2) => State::get_hold_key(key1, hold_limit, key2, position, layer, button)
         }
     }
 
-    fn get_instant_key(key: Key, position: &Position, layer: u8, hold_time: u8, release_time: u8) -> Option<Key> {
-        match key {
-            Key::KeyCode(kc) => Some(Key::KeyCode(kc)),
-            Key::Function(f) => Some(Key::Function(f)),
-            Key::PassThrough(go_down) => State::get_key(position, layer - go_down, hold_time, release_time),
-            Key::LayerMo(l) => Some(Key::LayerMo(l)),
-            _ => None
+    fn get_instant_key(key: Key, position: &Position, layer: u8, button: &Button) -> Option<Key> {
+        match button.is_pressed() {
+            true =>
+                match key {
+                    Key::KeyCode(kc) => Some(Key::KeyCode(kc)),
+                    Key::Function(f) => Some(Key::Function(f)),
+                    Key::PassThrough(go_down) => State::get_key(position, layer - go_down, button),
+                    Key::LayerMo(l) => Some(Key::LayerMo(l)),
+                    _ => None
+                },
+            false => None
         }
     }
-    fn get_hold_key(key1: Key, hold_limit: u8, key2: Key, position: &Position, layer: u8, hold_time: u8, release_time: u8) -> Option<Key> {
+    fn get_hold_key(key1: Key, hold_limit: u8, key2: Key, position: &Position, layer: u8, button: &Button) -> Option<Key> {
         // // If the key is pressed, but hold_time is less than hold_limit then send no key.
         // // If the key is pressed and hold_time is greater than hold_limit send key2
         // // If the key is released and hold_time WAS less than hold_limit send key1
-        return if hold_time < hold_limit {
-            // None
-            State::get_instant_key(key1, position, layer, hold_time, release_time)
-        } else if hold_time >= hold_limit {
-            State::get_instant_key(key2, position, layer, hold_time, release_time)
-        } else {
-            // SHOULD be the only option left, right?
-            // GAH! The button isn't pressed anymore when we currently achive this state, to it's
-            // never triggered! Need to scan all keys, not just pressed ones to make sure that we
-            // can actually trigger here
-            State::get_instant_key(key1, position, layer, hold_time, release_time)
+        match button.state {
+            Released => match button.time.released < 2 {
+                true => match button.time.pressed > hold_limit {
+                    true => None,
+                    false => match key1 {
+                        Key::KeyCode(kc) => Some(Key::KeyCode(kc)),
+                        Key::Function(f) => Some(Key::Function(f)),
+                        Key::PassThrough(go_down) => State::get_key(position, layer - go_down, button),
+                        Key::LayerMo(l) => Some(Key::LayerMo(l)),
+                        _ => None
+                    },
+                },
+                false => None,
+            },
+            Pressed => {
+                match button.time.pressed > hold_limit {
+                    true => match key2 {
+                        Key::KeyCode(kc) => Some(Key::KeyCode(kc)),
+                        Key::Function(f) => Some(Key::Function(f)),
+                        Key::PassThrough(go_down) => State::get_key(position, layer - go_down, button),
+                        Key::LayerMo(l) => Some(Key::LayerMo(l)),
+                        _ => None
+                    },
+                    false => None,
+                }
+            }
+            _ => None
         }
     }
 

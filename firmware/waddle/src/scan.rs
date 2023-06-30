@@ -11,11 +11,11 @@ impl Scan {
         }
     }
 
-    pub fn set_pressed(&mut self, row: usize, col: usize) {
-        self.pressed[row] = self.pressed[row] | (1 << col)
+    pub fn set_pressed(&mut self, row: &usize, col: &usize) {
+        self.pressed[*row] = self.pressed[*row] | (1 << col)
     }
 
-    pub fn is_pressed(&self, button: usize) -> bool {
+    pub fn is_pressed(&self, button: &usize) -> bool {
         let c = button % COLS;
         let r = button / COLS;
         let p = self.pressed[r] & (1 << c);

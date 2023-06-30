@@ -159,7 +159,7 @@ impl Keyboard {
             Self::low(row);
             for (c, col) in self.cols.iter_mut().enumerate() {
                 if Self::is_low(col) {
-                    scan_state.set_pressed(r, c);
+                    scan_state.set_pressed(&r, &c);
                 }
             }
             Self::high(row);

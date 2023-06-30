@@ -16,3 +16,14 @@ macro_rules! vec {
         temp_vec
     }}
 }
+
+#[macro_export]
+macro_rules! rvec {
+    ($x:expr, $times:expr) => {{
+        let mut tmp: heapless::Vec<_, $times> = heapless::Vec::new();
+        for i in 0..$times {
+            tmp.push($x);
+        }
+        tmp
+    }}
+}

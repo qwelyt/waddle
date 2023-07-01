@@ -8,12 +8,17 @@ use crate::keyboard::DELAY_MS;
 use crate::layout::{BUTTONS, Key, KeyType, LAYERS, LAYOUT, LEDS};
 use crate::position::position::Position;
 use crate::scan::Scan;
-use crate::state::ButtonState::{JustReleased, Pressed, Released};
+use crate::state::ButtonState::{JustPressed, JustReleased, Pressed, Released};
+
+fn ms_to_ticks(ms: u8) -> u8 {
+    ms / DELAY_MS as u8
+}
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum ButtonState {
     Released,
     Pressed,
+    JustPressed,
     JustReleased,
 }
 
@@ -33,9 +38,6 @@ struct Time {
 
 impl Time {
     fn new() -> Self { Self { pressed: 0, released: 0 } }
-    fn of(pressed: u8, released: u8) -> Self { Self { pressed, released } }
-    fn of_pressed(t: &Time) -> Self { Self { pressed: t.pressed.saturating_add(1), released: 0 } }
-    fn of_released(t: &Time) -> Self { Self { pressed: 0, released: t.released.saturating_add(1) } }
     fn pressed(&mut self) { self.pressed = self.pressed.saturating_add(1); }
     fn released(&mut self) { self.released = self.released.saturating_add(1); }
 }
@@ -69,7 +71,6 @@ impl Button {
 
 pub struct State {
     keys: Vec<Button, BUTTONS>,
-    // keys: [(u8, u8); BUTTONS],
     leds: u8,
 }
 
@@ -77,7 +78,6 @@ impl State {
     pub fn new() -> Self {
         Self {
             keys: rvec![Button::new(), BUTTONS],
-            // keys: [(0, 0);BUTTONS],
             leds: 0,
         }
     }
@@ -92,7 +92,6 @@ impl State {
     pub fn tick(&mut self, scan: &Scan) -> [ButtonState; BUTTONS] {
         // The key is either pressed or the key is released.
         // We want to know for how long the key has been in each state since the last change.
-        // All keys start off as released TO THE MAX, and then usage changes everything.
         // The pressed_time will help us know when to activate for example OnHolds
         // The released_time will help us if we implement DoubleTap. Or TapHold.
         // A TapHold checks for a short release and a long press.
@@ -101,24 +100,24 @@ impl State {
         self.keys.iter_mut().enumerate()
             .for_each(|(i, key)| match scan.is_pressed(&i) {
                 true => key.pressed(),
-                false => key.released()
+                false => key.released(),
             });
+        let layer = self.layer();
         let mut button_state = [Released; BUTTONS];
-        // TODO: Need to handle if an OnHold was just tapped.
-        // Might need to know if the key has an onhold on any layer
-        // and then add a type for that. And then you send in the pre
-        // [ButtonState] and check that if the prev was "ReleasedOnHol"
-        // then it becomes a Released. That way we get a status update
-        // and will blank the report.
-        //
-        // If not pressed, check release time. If that is less then 1 tick use something
-        // if it's more than 1 tick use something else. That way we get an update and
-        // we still properly check for state changes
         button_state.iter_mut().enumerate()
             .for_each(|(i, bs)| {
                 let k = &self.keys[i];
                 *bs = match k.is_pressed() {
-                    true => Pressed,
+                    true => {
+                        let key_type = LAYOUT.get_key(layer, &Position::from(i));
+                        match key_type {
+                            KeyType::Instant(_) => Pressed,
+                            KeyType::OnHold(_, limit, _) => match k.time.pressed < ms_to_ticks(limit) { // This needs to match that keys on-hold time
+                                true => JustPressed,
+                                false => Pressed,
+                            }
+                        }
+                    },
                     false => match k.time.released < 2 {
                         true => JustReleased,
                         false => Released,
@@ -161,7 +160,6 @@ impl State {
         //              2.2.2) If under hold_limit send key1. Next tick will blank it.
 
         let keys: Vec<Key, BUTTONS> = self.keys.iter().enumerate()
-            // .filter(|(i,b)|b.is_pressed())
             .map(|(i, button)| (Position::from(i), button))
             .map(|(p, button)| State::get_key(&p, layer, button))
             .filter(Option::is_some)
@@ -184,9 +182,6 @@ impl State {
             .sum()
     }
 
-    fn ms_to_ticks(ms: u8) -> u8 {
-        ms / DELAY_MS as u8
-    }
 
     fn get_key(position: &Position, layer: u8, button: &Button) -> Option<Key> {
         match LAYOUT.get_key(layer, position) {
@@ -214,7 +209,7 @@ impl State {
         // // If the key is released and hold_time WAS less than hold_limit send key1
         match button.state {
             Released => match button.time.released < 2 {
-                true => match button.time.pressed > hold_limit {
+                true => match button.time.pressed > ms_to_ticks(hold_limit) {
                     true => None,
                     false => match key1 {
                         Key::KeyCode(kc) => Some(Key::KeyCode(kc)),
@@ -227,7 +222,7 @@ impl State {
                 false => None,
             },
             Pressed => {
-                match button.time.pressed > hold_limit {
+                match button.time.pressed > ms_to_ticks(hold_limit) {
                     true => match key2 {
                         Key::KeyCode(kc) => Some(Key::KeyCode(kc)),
                         Key::Function(f) => Some(Key::Function(f)),

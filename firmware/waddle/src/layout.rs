@@ -13,7 +13,7 @@ use crate::state::State;
 #[derive(Copy, Clone)]
 pub enum KeyType {
     Instant(Key),
-    OnHold(Key, u8, Key), // Press key, wait time, hold key
+    OnHold(Key, u8, Key), // Press key, wait time in ticks, hold key
 }
 
 #[derive(Copy, Clone)]
@@ -23,6 +23,10 @@ pub enum Key {
     LayerMo(u8),
     PassThrough(u8),
     Dead,
+}
+
+const fn ms_to_ticks(ms: u8) -> u8 {
+    ms / crate::keyboard::DELAY_MS as u8
 }
 
 pub const ROWS: usize = 4;
@@ -35,9 +39,9 @@ pub const LEDS: usize = 3;
 progmem! {
     pub static progmem MATRIX: [[[KeyType; COLS]; ROWS]; LAYERS] = [
         [
-            [Instant(KeyCode(k::TAB)),    Instant(KeyCode(k::Q)),      OnHold(KeyCode(k::W), 100, KeyCode(k::P)),         Instant(KeyCode(k::E)),     Instant(KeyCode(k::R)),  Instant(KeyCode(k::T)),      Instant(KeyCode(k::Y)),       Instant(KeyCode(k::U)),       Instant(KeyCode(k::I)),       Instant(KeyCode(k::O)),       Instant(KeyCode(k::P)),         Instant(KeyCode(se::Å)),        ],
+            [Instant(KeyCode(k::TAB)),    Instant(KeyCode(k::Q)),      OnHold(KeyCode(k::W), ms_to_ticks(100), KeyCode(k::P)),         Instant(KeyCode(k::E)),     Instant(KeyCode(k::R)),  Instant(KeyCode(k::T)),      Instant(KeyCode(k::Y)),       Instant(KeyCode(k::U)),       Instant(KeyCode(k::I)),       Instant(KeyCode(k::O)),       Instant(KeyCode(k::P)),         Instant(KeyCode(se::Å)),        ],
             [Instant(KeyCode(k::ESC)),    Instant(KeyCode(k::A)),      Instant(KeyCode(k::S)),         Instant(KeyCode(k::D)),     Instant(KeyCode(k::F)),  Instant(KeyCode(k::G)),      Instant(KeyCode(k::H)),       Instant(KeyCode(k::J)),       Instant(KeyCode(k::K)),       Instant(KeyCode(k::L)),       Instant(KeyCode(se::Ö)),        Instant(KeyCode(se::Ä)),        ],
-            [Instant(KeyCode(k::L_SHFT)), OnHold(KeyCode(k::Z), 100, KeyCode(k::L_SHFT)),      Instant(KeyCode(k::X)),         Instant(KeyCode(k::C)),     Instant(KeyCode(k::V)),  Instant(KeyCode(k::B)),      Instant(KeyCode(k::N)),       Instant(KeyCode(k::M)),       Instant(KeyCode(k::COMMA)),   Instant(KeyCode(k::DOT)),     Instant(KeyCode(se::DASH)),     Instant(KeyCode(k::R_SHFT)),    ],
+            [Instant(KeyCode(k::L_SHFT)), OnHold(KeyCode(k::Z), ms_to_ticks(100), KeyCode(k::L_SHFT)),      Instant(KeyCode(k::X)),         Instant(KeyCode(k::C)),     Instant(KeyCode(k::V)),  Instant(KeyCode(k::B)),      Instant(KeyCode(k::N)),       Instant(KeyCode(k::M)),       Instant(KeyCode(k::COMMA)),   Instant(KeyCode(k::DOT)),     Instant(KeyCode(se::DASH)),     Instant(KeyCode(k::R_SHFT)),    ],
             [Instant(KeyCode(k::L_CTRL)), Instant(KeyCode(k::L_SUPR)), Instant(KeyCode(k::BS_N_PIPE)), Instant(KeyCode(k::L_ALT)), Instant(LayerMo(1)),     Instant(KeyCode(k::SPACE)),  Instant(KeyCode(k::RETURN)),  Instant(LayerMo(2)),          Instant(KeyCode(k::R_ALT)),   Instant(KeyCode(k::MENU)),    Instant(KeyCode(k::R_SUPR)),    Instant(KeyCode(k::R_CTRL)),    ],
         ],
         [

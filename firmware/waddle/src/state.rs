@@ -10,10 +10,6 @@ use crate::position::position::Position;
 use crate::scan::Scan;
 use crate::state::ButtonState::{JustPressed, JustReleased, Pressed, Released};
 
-fn ms_to_ticks(ms: u8) -> u8 {
-    ms / DELAY_MS as u8
-}
-
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum ButtonState {
     Released,
@@ -112,12 +108,12 @@ impl State {
                         let key_type = LAYOUT.get_key(layer, &Position::from(i));
                         match key_type {
                             KeyType::Instant(_) => Pressed,
-                            KeyType::OnHold(_, limit, _) => match k.time.pressed < ms_to_ticks(limit) { // This needs to match that keys on-hold time
-                                true => JustPressed,
-                                false => Pressed,
+                            KeyType::OnHold(_, limit, _) => match k.time.pressed > limit { // This needs to match that keys on-hold time
+                                false => JustPressed,
+                                true => Pressed,
                             }
                         }
-                    },
+                    }
                     false => match k.time.released < 2 {
                         true => JustReleased,
                         false => Released,
@@ -209,7 +205,7 @@ impl State {
         // // If the key is released and hold_time WAS less than hold_limit send key1
         match button.state {
             Released => match button.time.released < 2 {
-                true => match button.time.pressed > ms_to_ticks(hold_limit) {
+                true => match button.time.pressed > hold_limit {
                     true => None,
                     false => match key1 {
                         Key::KeyCode(kc) => Some(Key::KeyCode(kc)),
@@ -222,7 +218,7 @@ impl State {
                 false => None,
             },
             Pressed => {
-                match button.time.pressed > ms_to_ticks(hold_limit) {
+                match button.time.pressed > hold_limit {
                     true => match key2 {
                         Key::KeyCode(kc) => Some(Key::KeyCode(kc)),
                         Key::Function(f) => Some(Key::Function(f)),

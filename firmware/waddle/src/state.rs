@@ -8,13 +8,13 @@ use crate::keyboard::DELAY_MS;
 use crate::layout::{BUTTONS, Key, KeyType, LAYERS, LAYOUT, LEDS};
 use crate::position::position::Position;
 use crate::scan::Scan;
-use crate::state::ButtonState::{Pressed, Released};
+use crate::state::ButtonState::{JustReleased, Pressed, Released};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum ButtonState {
     Released,
     Pressed,
-    Held,
+    JustReleased,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -104,13 +104,25 @@ impl State {
                 false => key.released()
             });
         let mut button_state = [Released; BUTTONS];
+        // TODO: Need to handle if an OnHold was just tapped.
+        // Might need to know if the key has an onhold on any layer
+        // and then add a type for that. And then you send in the pre
+        // [ButtonState] and check that if the prev was "ReleasedOnHol"
+        // then it becomes a Released. That way we get a status update
+        // and will blank the report.
+        //
+        // If not pressed, check release time. If that is less then 1 tick use something
+        // if it's more than 1 tick use something else. That way we get an update and
+        // we still properly check for state changes
         button_state.iter_mut().enumerate()
             .for_each(|(i, bs)| {
                 let k = &self.keys[i];
-                if k.is_pressed() {
-                    *bs = Pressed;
-                } else if !k.is_pressed() {
-                    *bs = Released;
+                *bs = match k.is_pressed() {
+                    true => Pressed,
+                    false => match k.time.released < 2 {
+                        true => JustReleased,
+                        false => Released,
+                    }
                 }
             });
         button_state

@@ -66,7 +66,7 @@ impl Keyboard {
         for (i, pin) in leds.into_iter().enumerate() {
             led_pins.insert(i, EitherPin::Output(pin));
         }
-        let mut state = State::new();
+        let mut state = State::new(); // Need to be broken out. If inlined atmega32u4 panics
         Self {
             usb_device,
             hid_class,

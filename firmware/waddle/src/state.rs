@@ -12,18 +12,10 @@ use crate::state::ButtonState::{Held, JustReleased, Pressed, Released};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum ButtonState {
-    Released,
     Held,
-    Pressed,
     JustReleased,
-}
-
-#[derive(Copy, Clone, Eq, PartialEq)]
-pub enum Transition {
-    ReleasedToPressed,
-    PressedToReleased,
-    PressedToHeld,
-    HeldToReleased,
+    Pressed,
+    Released,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq)]

@@ -3,6 +3,7 @@ use avr_progmem::wrapper::ProgMem;
 
 use k::norde::se;
 use Key::{Dead, Function, KeyCode, LayerMo, PassThrough};
+use KeyType::{Instant, OnHold};
 
 use crate::keycode::k;
 use crate::keycode::k::layer;
@@ -10,13 +11,22 @@ use crate::position::position::Position;
 use crate::state::State;
 
 #[derive(Copy, Clone)]
+pub enum KeyType {
+    Instant(Key),
+    OnHold(Key, u8, Key), // Press key, wait time in ticks, hold key
+}
+
+#[derive(Copy, Clone)]
 pub enum Key {
     KeyCode(u8),
     Function(fn(&mut State)),
     LayerMo(u8),
-    LayerCh(u8),
     PassThrough(u8),
     Dead,
+}
+
+const fn ms_to_ticks(ms: u8) -> u8 {
+    ms / crate::keyboard::DELAY_MS as u8
 }
 
 pub const ROWS: usize = 4;
@@ -27,30 +37,30 @@ pub const LAYERS: usize = 4;
 pub const LEDS: usize = 3;
 // @formatter:off
 progmem! {
-    pub static progmem MATRIX: [[[Key; COLS]; ROWS]; LAYERS] = [
+    pub static progmem MATRIX: [[[KeyType; COLS]; ROWS]; LAYERS] = [
         [
-            [KeyCode(k::TAB),    KeyCode(k::Q),      KeyCode(k::W),         KeyCode(k::E),     KeyCode(k::R),  KeyCode(k::T),      KeyCode(k::Y),       KeyCode(k::U),       KeyCode(k::I),       KeyCode(k::O),       KeyCode(k::P),         KeyCode(se::Å),        ],
-            [KeyCode(k::ESC),    KeyCode(k::A),      KeyCode(k::S),         KeyCode(k::D),     KeyCode(k::F),  KeyCode(k::G),      KeyCode(k::H),       KeyCode(k::J),       KeyCode(k::K),       KeyCode(k::L),       KeyCode(se::Ö),        KeyCode(se::Ä),        ],
-            [KeyCode(k::L_SHFT), KeyCode(k::Z),      KeyCode(k::X),         KeyCode(k::C),     KeyCode(k::V),  KeyCode(k::B),      KeyCode(k::N),       KeyCode(k::M),       KeyCode(k::COMMA),   KeyCode(k::DOT),     KeyCode(se::DASH),     KeyCode(k::R_SHFT),    ],
-            [KeyCode(k::L_CTRL), KeyCode(k::L_SUPR), KeyCode(k::BS_N_PIPE), KeyCode(k::L_ALT), LayerMo(1),     KeyCode(k::SPACE),  KeyCode(k::RETURN),  LayerMo(2),          KeyCode(k::R_ALT),   KeyCode(k::MENU),    KeyCode(k::R_SUPR),    KeyCode(k::R_CTRL),    ],
+            [Instant(KeyCode(k::TAB)),    Instant(KeyCode(k::Q)),      Instant(KeyCode(k::W)),         Instant(KeyCode(k::E)),     Instant(KeyCode(k::R)),  Instant(KeyCode(k::T)),      Instant(KeyCode(k::Y)),       Instant(KeyCode(k::U)),       Instant(KeyCode(k::I)),       Instant(KeyCode(k::O)),       Instant(KeyCode(k::P)),         Instant(KeyCode(se::Å)),        ],
+            [Instant(KeyCode(k::ESC)),    Instant(KeyCode(k::A)),      Instant(KeyCode(k::S)),         Instant(KeyCode(k::D)),     Instant(KeyCode(k::F)),  Instant(KeyCode(k::G)),      Instant(KeyCode(k::H)),       Instant(KeyCode(k::J)),       Instant(KeyCode(k::K)),       Instant(KeyCode(k::L)),       Instant(KeyCode(se::Ö)),        Instant(KeyCode(se::Ä)),        ],
+            [Instant(KeyCode(k::L_SHFT)), Instant(KeyCode(k::Z)),      Instant(KeyCode(k::X)),         Instant(KeyCode(k::C)),     Instant(KeyCode(k::V)),  Instant(KeyCode(k::B)),      Instant(KeyCode(k::N)),       Instant(KeyCode(k::M)),       Instant(KeyCode(k::COMMA)),   Instant(KeyCode(k::DOT)),     Instant(KeyCode(se::DASH)),     Instant(KeyCode(k::R_SHFT)),    ],
+            [Instant(KeyCode(k::L_CTRL)), Instant(KeyCode(k::L_SUPR)), Instant(KeyCode(k::BS_N_PIPE)), Instant(KeyCode(k::L_ALT)), Instant(LayerMo(1)),     Instant(KeyCode(k::SPACE)),  Instant(KeyCode(k::RETURN)),  Instant(LayerMo(2)),          Instant(KeyCode(k::R_ALT)),   Instant(KeyCode(k::MENU)),    Instant(KeyCode(k::R_SUPR)),    Instant(KeyCode(k::R_CTRL)),    ],
         ],
         [
-            [KeyCode(k::K1),     KeyCode(k::K2),     KeyCode(k::K3),        KeyCode(k::K4),    KeyCode(k::K5), KeyCode(k::K6),     KeyCode(k::K7),      KeyCode(k::K8),      KeyCode(k::K9),      KeyCode(k::K0),      KeyCode(k::OBRAKET),   KeyCode(k::CBRAKET),   ],
-            [KeyCode(k::ESC),    PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), PassThrough(1),     KeyCode(k::ARROW_L), KeyCode(k::ARROW_D), KeyCode(k::ARROW_U), KeyCode(k::ARROW_R), KeyCode(k::TILDE),     KeyCode(k::EQUAL),     ],
-            [KeyCode(k::L_SHFT), PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), PassThrough(1),     PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),        KeyCode(k::BACKSPACE), ],
-            [KeyCode(k::L_CTRL), KeyCode(k::L_SUPR), KeyCode(k::GACC),      KeyCode(k::L_ALT), PassThrough(1), KeyCode(k::SPACE),  KeyCode(k::RETURN),  LayerMo(2),          KeyCode(k::R_ALT),   KeyCode(k::MENU),    KeyCode(k::R_SUPR),    KeyCode(k::R_CTRL),    ],
+            [Instant(KeyCode(k::K1)),     Instant(KeyCode(k::K2)),     Instant(KeyCode(k::K3)),        Instant(KeyCode(k::K4)),    Instant(KeyCode(k::K5)), Instant(KeyCode(k::K6)),     Instant(KeyCode(k::K7)),      Instant(KeyCode(k::K8)),      Instant(KeyCode(k::K9)),      Instant(KeyCode(k::K0)),      Instant(KeyCode(k::OBRAKET)),   Instant(KeyCode(k::CBRAKET)),   ],
+            [Instant(PassThrough(1)),     Instant(PassThrough(1)),     Instant(PassThrough(1)),        Instant(PassThrough(1)),    Instant(PassThrough(1)), Instant(PassThrough(1)),     Instant(KeyCode(k::ARROW_L)), Instant(KeyCode(k::ARROW_D)), Instant(KeyCode(k::ARROW_U)), Instant(KeyCode(k::ARROW_R)), Instant(KeyCode(k::TILDE)),     Instant(KeyCode(k::EQUAL)),     ],
+            [Instant(PassThrough(1)),     Instant(PassThrough(1)),     Instant(PassThrough(1)),        Instant(PassThrough(1)),    Instant(PassThrough(1)), Instant(PassThrough(1)),     Instant(PassThrough(1)),      Instant(PassThrough(1)),      Instant(PassThrough(1)),      Instant(PassThrough(1)),      Instant(PassThrough(1)),        Instant(KeyCode(k::BACKSPACE)), ],
+            [Instant(PassThrough(1)),     Instant(PassThrough(1)),     Instant(KeyCode(k::GACC)),      Instant(PassThrough(1)),    Instant(PassThrough(1)), Instant(PassThrough(1)),     Instant(PassThrough(1)),      Instant(LayerMo(2)),          Instant(PassThrough(1)),      Instant(PassThrough(1)),      Instant(PassThrough(1)),        Instant(PassThrough(1)),        ],
         ],
         [
-            [KeyCode(k::F1),     KeyCode(k::F2),     KeyCode(k::F3),        KeyCode(k::F4),    KeyCode(k::F5), KeyCode(k::F6),     KeyCode(k::F7),      KeyCode(k::F8),      KeyCode(k::F9),      KeyCode(k::F10),     KeyCode(k::F11),       KeyCode(k::F12),       ],
-            [KeyCode(k::ESC),    PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), KeyCode(k::INSERT), KeyCode(k::HOME),    KeyCode(k::PGDWN),   KeyCode(k::PGUP),    KeyCode(k::END),     KeyCode(k::PRNT_SCRN), KeyCode(k::DASH),      ],
-            [KeyCode(k::L_SHFT), PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), PassThrough(1),     PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),        KeyCode(k::DELETE),    ],
-            [KeyCode(k::L_CTRL), KeyCode(k::L_SUPR), PassThrough(1),        KeyCode(k::L_ALT), LayerMo(1),     KeyCode(k::SPACE),  KeyCode(k::RETURN),  PassThrough(1),      KeyCode(k::R_ALT),   KeyCode(k::MENU),    KeyCode(k::R_SUPR),    KeyCode(k::R_CTRL),    ],
+            [Instant(KeyCode(k::F1)),     Instant(KeyCode(k::F2)),     Instant(KeyCode(k::F3)),        Instant(KeyCode(k::F4)),    Instant(KeyCode(k::F5)), Instant(KeyCode(k::F6)),     Instant(KeyCode(k::F7)),      Instant(KeyCode(k::F8)),      Instant(KeyCode(k::F9)),      Instant(KeyCode(k::F10)),     Instant(KeyCode(k::F11)),       Instant(KeyCode(k::F12)),       ],
+            [Instant(PassThrough(1)),     Instant(PassThrough(1)),     Instant(PassThrough(1)),        Instant(PassThrough(1)),    Instant(PassThrough(1)), Instant(KeyCode(k::INSERT)), Instant(KeyCode(k::HOME)),    Instant(KeyCode(k::PGDWN)),   Instant(KeyCode(k::PGUP)),    Instant(KeyCode(k::END)),     Instant(KeyCode(k::PRNT_SCRN)), Instant(KeyCode(k::DASH)),      ],
+            [Instant(PassThrough(1)),     Instant(PassThrough(1)),     Instant(PassThrough(1)),        Instant(PassThrough(1)),    Instant(PassThrough(1)), Instant(PassThrough(1)),     Instant(PassThrough(1)),      Instant(PassThrough(1)),      Instant(PassThrough(1)),      Instant(PassThrough(1)),      Instant(PassThrough(1)),        Instant(KeyCode(k::DELETE)),    ],
+            [Instant(PassThrough(1)),     Instant(PassThrough(1)),     Instant(PassThrough(1)),        Instant(PassThrough(1)),    Instant(LayerMo(1)),     Instant(PassThrough(1)),     Instant(PassThrough(1)),      Instant(PassThrough(1)),      Instant(PassThrough(1)),      Instant(PassThrough(1)),      Instant(PassThrough(1)),        Instant(PassThrough(1)),        ],
         ],
         [
-            [Function(|state| state.toggle_led(0)), Function(|s|s.toggle_led(1)), Function(|s| s.toggle_led(2)), PassThrough(1), PassThrough(1), PassThrough(1), PassThrough(1), PassThrough(1), PassThrough(1), PassThrough(1),PassThrough(1), PassThrough(1),],
-            [KeyCode(k::ESC),    PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), PassThrough(1),    PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),       PassThrough(1),        PassThrough(1),        ],
-            [KeyCode(k::L_SHFT), PassThrough(1),     PassThrough(1),        PassThrough(1),    PassThrough(1), PassThrough(1),    PassThrough(1),      PassThrough(1),      PassThrough(1),      PassThrough(1),       PassThrough(1),        KeyCode(k::R_SHFT),    ],
-            [KeyCode(k::L_CTRL), KeyCode(k::L_SUPR), PassThrough(1),        KeyCode(k::L_ALT), PassThrough(1), KeyCode(k::SPACE), KeyCode(k::RETURN),  PassThrough(1),      KeyCode(k::R_ALT),   KeyCode(k::MENU),     KeyCode(k::R_SUPR),    KeyCode(k::R_CTRL),    ],
+            [Instant(Function(|state| state.toggle_led(0))), Instant(Function(|s|s.toggle_led(1))), Instant(Function(|s| s.toggle_led(2))), Instant(PassThrough(1)), Instant(PassThrough(1)), Instant(PassThrough(1)), Instant(PassThrough(1)), Instant(PassThrough(1)), Instant(PassThrough(1)), Instant(PassThrough(1)),Instant(PassThrough(1)), Instant(PassThrough(1)),],
+            [Instant(PassThrough(1)),     Instant(PassThrough(1)),     Instant(PassThrough(1)),        Instant(PassThrough(1)),    Instant(PassThrough(1)), Instant(PassThrough(1)),    Instant(PassThrough(1)),      Instant(PassThrough(1)),      Instant(PassThrough(1)),      Instant(PassThrough(1)),       Instant(PassThrough(1)),        Instant(PassThrough(1)),        ],
+            [Instant(PassThrough(1)),     Instant(PassThrough(1)),     Instant(PassThrough(1)),        Instant(PassThrough(1)),    Instant(PassThrough(1)), Instant(PassThrough(1)),    Instant(PassThrough(1)),      Instant(PassThrough(1)),      Instant(PassThrough(1)),      Instant(PassThrough(1)),       Instant(PassThrough(1)),        Instant(KeyCode(k::R_SHFT)),    ],
+            [Instant(PassThrough(1)),     Instant(PassThrough(1)),     Instant(PassThrough(1)),        Instant(PassThrough(1)),    Instant(PassThrough(1)), Instant(PassThrough(1)),    Instant(PassThrough(1)),      Instant(PassThrough(1)),      Instant(PassThrough(1)),      Instant(PassThrough(1)),       Instant(PassThrough(1)),        Instant(PassThrough(1)),        ],
         ],
     ];
 }
@@ -59,7 +69,7 @@ progmem! {
 pub static LAYOUT: Layout = Layout { matrix: MATRIX };
 
 pub struct Layout {
-    matrix: ProgMem<[[[Key; COLS]; ROWS]; LAYERS]>,
+    matrix: ProgMem<[[[KeyType; COLS]; ROWS]; LAYERS]>,
 }
 
 
@@ -68,34 +78,7 @@ impl Layout {
         Self { matrix: MATRIX }
     }
 
-    pub fn get_key(&self, layer: u8, position: &Position) -> Key {
+    pub fn get_key(&self, layer: u8, position: &Position) -> KeyType {
         self.matrix.at(layer as usize).at(position.row() as usize).at(position.col() as usize).load()
     }
-
-    pub fn get_layer_mod(&self, position: &Position) -> u8 {
-        match self.matrix.at(0)
-            .at(position.row() as usize)
-            .load_at(position.col() as usize) {
-            LayerMo(l) => l,
-            _ => 0
-        }
-    }
-
-    // pub fn get_keycode(&self, layer: u8, position: &Position) -> Option<u8> {
-    //     match self.matrix.at(layer as usize)
-    //         .at(position.row() as usize)
-    //         .load_at(position.col() as usize) {
-    //         KeyCode(kc) => Some(kc),
-    //         PassThrough(l) => self.get_keycode(layer - l, position),
-    //         _ => None,
-    //     }
-    // }
-
-    // pub fn get_mod(&self, layer: u8, position: &Position) -> Option<u8> {
-    //     self.get_keycode(layer, position).filter(k::is_mod).map(k::to_mod_bitfield)
-    // }
-    //
-    // pub fn get_non_mod(&self, layer: u8, position: &Position) -> Option<u8> {
-    //     self.get_keycode(layer, position).filter(|u| !k::is_mod(u))
-    // }
 }

@@ -10,6 +10,7 @@ use usbd_hid::hid_class::HIDClass;
 
 use crate::keycode::k;
 use crate::layout::{BUTTONS, COLS, Key, LAYERS, Layout, LAYOUT, LEDS, NUM_CHUNKS, ROWS};
+use crate::layout::Key::KeyCode;
 use crate::position::position::Position;
 use crate::scan::Scan;
 use crate::state::{ButtonState, State};
@@ -65,6 +66,7 @@ impl Keyboard {
         for (i, pin) in leds.into_iter().enumerate() {
             led_pins.insert(i, EitherPin::Output(pin));
         }
+        let mut state = State::new(); // Need to be broken out. If inlined atmega32u4 panics
         Self {
             usb_device,
             hid_class,
@@ -72,7 +74,7 @@ impl Keyboard {
             rows: row_pins,
             cols: col_pins,
             leds: led_pins,
-            state: State::new(),
+            state: state,
             last_button_state: [Released; BUTTONS],
         }
     }
@@ -134,6 +136,7 @@ impl Keyboard {
                 self.apply_functions(&events);
                 let kr: KeyboardReport = self.create_report(&events);
                 self.hid_class.push_input(&kr);
+                let led_state = self.state.led_state();
             }
             self.set_leds();
             delay_ms(DELAY_MS);
@@ -157,7 +160,7 @@ impl Keyboard {
             Self::low(row);
             for (c, col) in self.cols.iter_mut().enumerate() {
                 if Self::is_low(col) {
-                    scan_state.set_pressed(r, c);
+                    scan_state.set_pressed(&r, &c);
                 }
             }
             Self::high(row);

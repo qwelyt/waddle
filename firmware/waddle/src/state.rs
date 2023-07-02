@@ -8,13 +8,13 @@ use crate::keyboard::DELAY_MS;
 use crate::layout::{BUTTONS, Key, KeyType, LAYERS, LAYOUT, LEDS};
 use crate::position::position::Position;
 use crate::scan::Scan;
-use crate::state::ButtonState::{JustPressed, JustReleased, Pressed, Released};
+use crate::state::ButtonState::{Held, JustReleased, Pressed, Released};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum ButtonState {
     Released,
+    Held,
     Pressed,
-    JustPressed,
     JustReleased,
 }
 
@@ -46,7 +46,7 @@ struct Button {
 impl Button {
     fn new() -> Self { Self { state: Released, time: Time::new() } }
     fn released(&mut self) {
-        if self.state == Pressed {
+        if self.state == Held {
             self.time.released = 0;
         }
         self.state = Released;
@@ -56,12 +56,12 @@ impl Button {
         if self.state == Released {
             self.time.pressed = 0;
         }
-        self.state = Pressed;
+        self.state = Held;
         self.time.pressed();
     }
 
     fn is_pressed(&self) -> bool {
-        self.state == Pressed && self.time.pressed > 2
+        self.state == Held && self.time.pressed > 2
     }
 }
 
@@ -75,13 +75,6 @@ impl State {
         Self {
             keys: rvec![Button::new(), BUTTONS],
             leds: 0,
-        }
-    }
-    pub fn init(&mut self) {
-        for i in 0..BUTTONS {
-            // self.keys[i] = Time::new();
-            // self.keys[i] = (0, u8::MAX);
-            // self.keys[i].1 = u8::MAX;
         }
     }
 
@@ -98,6 +91,14 @@ impl State {
                 true => key.pressed(),
                 false => key.released(),
             });
+
+
+        // We return a simple state of the keys instead of the actual keys due to space limitations.
+        // A Key can be *BIG* space wise. The more types we add the more memory it could potentially
+        // occupy. This is problematic on low-memory devices like the atmega32u4.
+        // So instead of sending back the keys for `Keyboard` to store we send back a simple array
+        // with enums. This takes much less space as we don't add things to these enums. They can
+        // be stored as simple numbers by rust (or some other more space efficient way)
         let layer = self.layer();
         let mut button_state = [Released; BUTTONS];
         button_state.iter_mut().enumerate()
@@ -107,10 +108,10 @@ impl State {
                     true => {
                         let key_type = LAYOUT.get_key(layer, &Position::from(i));
                         match key_type {
-                            KeyType::Instant(_) => Pressed,
-                            KeyType::OnHold(_, limit, _) => match k.time.pressed > limit { // This needs to match that keys on-hold time
-                                false => JustPressed,
-                                true => Pressed,
+                            KeyType::Instant(_) => Held,
+                            KeyType::OnHold(_, limit, _) => match k.time.pressed > limit {
+                                false => Pressed,
+                                true => Held,
                             }
                         }
                     }
@@ -124,23 +125,13 @@ impl State {
     }
 
     pub fn keys(&self) -> Vec<Key, BUTTONS> {
-        // Check for on-holds. If ticks are below the on-hold limit then
-        // send the non-hold key as an event.
-        // If the ticks are *over* then we have already activated that key
-        // and should do nothing
         // // 1. Find which layer we are on
         // // 2. Get all keys on that layer, or lower if current is PassThrough
         // 3. Add KeyCodes and Functions as events
         // 4. Check if on-holds. If they are above limit, get the key.
         //      If they are below, ignore.
 
-        // TODO: As we are now dealing with on-holds, we can only send key presses for on-holds if they
-        // are either released or past the on-hold time. If a key is on-hold, and we are under the time limit
-        // then we can't send any keys. Perhaps we are just waiting for it to activate? Then we can't send key1.
-        // Only if we are past wait_time can we send key2, and only if we have release the
-        // key can we send key1 if we are under wait_time.
         let layer = self.layer();
-
         // A key is relevant if it is pressed or if it is being held.
         // This is true for Instants.
         // For OnHold a key is relevant if it is held OR just released.
@@ -217,7 +208,7 @@ impl State {
                 },
                 false => None,
             },
-            Pressed => {
+            Held => {
                 match button.time.pressed > hold_limit {
                     true => match key2 {
                         Key::KeyCode(kc) => Some(Key::KeyCode(kc)),

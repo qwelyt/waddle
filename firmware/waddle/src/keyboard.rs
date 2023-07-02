@@ -67,7 +67,6 @@ impl Keyboard {
             led_pins.insert(i, EitherPin::Output(pin));
         }
         let mut state = State::new();
-        state.init();
         Self {
             usb_device,
             hid_class,
@@ -132,21 +131,8 @@ impl Keyboard {
             let button_state: [ButtonState; BUTTONS] = self.state.tick(&scan);
 
             if button_state != self.last_button_state {
-                self.state.toggle_led(1);
-                self.set_leds();
-                delay_ms(20);
-                self.state.toggle_led(1);
-                self.set_leds();
-
                 self.last_button_state = button_state;
                 let events = self.state.keys();
-                if self.c(&events) {
-                    self.state.toggle_led(0);
-                    self.set_leds();
-                    delay_ms(20);
-                    self.state.toggle_led(0);
-                    self.set_leds();
-                }
                 self.apply_functions(&events);
                 let kr: KeyboardReport = self.create_report(&events);
                 self.hid_class.push_input(&kr);
@@ -155,21 +141,6 @@ impl Keyboard {
             self.set_leds();
             delay_ms(DELAY_MS);
         }
-    }
-
-    fn c(&self, keys: &Vec<Key, BUTTONS>) -> bool {
-        for p in keys.iter()
-            .map(|k| match k {
-                KeyCode(kk) => Some(kk),
-                _ => None,
-            })
-            .filter(Option::is_some)
-            .map(Option::unwrap) {
-            if *p == k::P {
-                return true;
-            }
-        }
-        false
     }
 
     fn scan(&mut self) -> Scan {
